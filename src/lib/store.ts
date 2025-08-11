@@ -13,15 +13,16 @@ export interface User {
 
 export interface Product {
   id: string
-  name: string
+  title: string // ✅ Changed from 'name' to 'title' to match API
+  name?: string // ✅ Keep for backward compatibility
   description: string
   price: number
-  images: string[]
+  images?: string[]
   category: string
-  sellerId: string
+  sellerId?: string
   inventory: number
   rating?: number
-  createdAt: Date
+  createdAt?: Date
 }
 
 export interface CartItem {
@@ -30,6 +31,7 @@ export interface CartItem {
   product: Product
   quantity: number
   price: number
+  inStock: boolean
 }
 
 export interface Order {
@@ -150,10 +152,11 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
   filterProducts: () => {
     const { products, searchQuery, selectedCategory, priceRange } = get()
     
-    let filtered = products.filter((product) => {
-      // Search filter
+    const filtered = products.filter((product) => {
+      // Search filter - check both title and name for compatibility
+      const productName = product.title || product.name || ''
       const matchesSearch = !searchQuery || 
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.description.toLowerCase().includes(searchQuery.toLowerCase())
       
       // Category filter
@@ -185,6 +188,9 @@ interface CartState {
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
   calculateTotals: () => void
+  getCartItemsCount: () => number
+  getCartSubtotal: () => number
+  getCartTotal: () => number
   toggleCart: () => void
   setCartOpen: (isOpen: boolean) => void
 }
@@ -210,6 +216,7 @@ export const useCartStore = create<CartState>()(
             product,
             quantity,
             price: product.price,
+            inStock: product.inventory > 0,
           }
           set((state) => ({ items: [...state.items, newItem] }))
         }
@@ -248,6 +255,21 @@ export const useCartStore = create<CartState>()(
         set({ total, itemCount })
       },
 
+      getCartItemsCount: () => {
+        const { items } = get()
+        return items.reduce((count, item) => count + item.quantity, 0)
+      },
+
+      getCartSubtotal: () => {
+        const { items } = get()
+        return items.reduce((total, item) => total + (item.price * item.quantity), 0)
+      },
+
+      getCartTotal: () => {
+        const { items } = get()
+        return items.reduce((total, item) => total + (item.price * item.quantity), 0)
+      },
+
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
       setCartOpen: (isOpen) => set({ isOpen }),
     }),
@@ -277,7 +299,13 @@ interface LiveState {
   setCurrentSession: (session: LiveSession | null) => void
   setIsConnected: (connected: boolean) => void
   setViewerCount: (count: number) => void
-  addChatMessage: (message: any) => void
+  addChatMessage: (message: {
+    id: string
+    userId: string
+    userName: string
+    message: string
+    timestamp: Date
+  }) => void
   clearChat: () => void
 }
 

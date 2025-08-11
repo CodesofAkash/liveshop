@@ -1,4 +1,3 @@
-// src/app/page.tsx
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -8,7 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-// import { toast } from '@/components/ui/use-toast'
 import { 
   Search, 
   Filter, 
@@ -22,7 +20,7 @@ import {
   RefreshCw,
   AlertCircle
 } from 'lucide-react'
-import Header from './_components/Header'
+import { useRouter } from 'next/navigation' // Fixed: Changed from 'next/router' to 'next/navigation'
 
 // Enhanced API Functions with better error handling and fallback
 const fetchProducts = async (params: {
@@ -49,8 +47,8 @@ const fetchProducts = async (params: {
       },
     })
 
+    console.log("Response = ", response);
     if (!response.ok) {
-      // If it's a 404, return empty results instead of throwing
       if (response.status === 404) {
         return {
           success: true,
@@ -62,6 +60,7 @@ const fetchProducts = async (params: {
               totalCount: 0,
               hasNextPage: false,
               hasPrevPage: false,
+              limit: params.limit || 12
             }
           }
         }
@@ -100,7 +99,6 @@ const fetchCategories = async () => {
     return await response.json()
   } catch (error) {
     console.error('Categories API Error:', error)
-    // Return fallback categories
     return {
       success: true,
       data: [
@@ -118,7 +116,7 @@ const fetchCategories = async () => {
 const mockProducts = [
   {
     id: 'mock-1',
-    name: 'iPhone 15 Pro',
+    title: 'iPhone 15 Pro', // Changed from 'name' to 'title' to match API
     description: 'Latest iPhone with titanium build and advanced camera system',
     price: 134900,
     images: ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300&h=300&fit=crop'],
@@ -132,7 +130,7 @@ const mockProducts = [
   },
   {
     id: 'mock-2',
-    name: 'Nike Air Jordan 1',
+    title: 'Nike Air Jordan 1', // Changed from 'name' to 'title'
     description: 'Classic basketball shoes with iconic design',
     price: 12995,
     images: ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=300&fit=crop'],
@@ -146,7 +144,7 @@ const mockProducts = [
   },
   {
     id: 'mock-3',
-    name: 'MacBook Pro 16"',
+    title: 'MacBook Pro 16"', // Changed from 'name' to 'title'
     description: 'Professional laptop with M3 Pro chip',
     price: 249900,
     images: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=300&h=300&fit=crop'],
@@ -160,7 +158,7 @@ const mockProducts = [
   },
   {
     id: 'mock-4',
-    name: 'Wireless Earbuds',
+    title: 'Wireless Earbuds', // Changed from 'name' to 'title'
     description: 'Premium sound quality with noise cancellation',
     price: 8999,
     images: ['https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=300&h=300&fit=crop'],
@@ -174,10 +172,10 @@ const mockProducts = [
   }
 ]
 
-// Types for API responses
+// Fixed Types for API responses
 interface ApiProduct {
   id: string
-  name: string
+  title: string // Changed from 'name' to 'title' to match API
   description: string
   price: number
   images: string[]
@@ -199,19 +197,19 @@ interface Category {
   count: number
 }
 
-// Product Card Component (keeping your UI exactly as is)
-const ProductCard = ({ product }: { product: ApiProduct }) => {
+// Product Card Component
+const ProductCard = ({ product, onClick }: { product: ApiProduct; onClick?: () => void }) => {
   const { addItem } = useCartStore()
   const addNotification = useUIStore((state) => state.addNotification)
   const [isAdding, setIsAdding] = useState(false)
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent triggering onClick when adding to cart
     setIsAdding(true)
     try {
-      // Convert API product to store product format
       const storeProduct = {
         id: product.id,
-        name: product.name,
+        name: product.title, // Map title to name for store compatibility
         description: product.description,
         price: product.price,
         images: product.images,
@@ -227,7 +225,7 @@ const ProductCard = ({ product }: { product: ApiProduct }) => {
       addNotification({
         type: 'success',
         title: 'Added to Cart',
-        message: `${product.name} has been added to your cart`,
+        message: `${product.title} has been added to your cart`,
       })
     } catch (error) {
       addNotification({
@@ -249,12 +247,15 @@ const ProductCard = ({ product }: { product: ApiProduct }) => {
   }
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+    <Card 
+      className="group hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
+      onClick={onClick}
+    >
       <CardHeader className="p-0">
         <div className="relative overflow-hidden rounded-t-lg">
           <img
             src={product.images[0] || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'}
-            alt={product.name}
+            alt={product.title}
             className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
             onError={(e) => {
               e.currentTarget.src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'
@@ -280,7 +281,7 @@ const ProductCard = ({ product }: { product: ApiProduct }) => {
       
       <CardContent className="p-4">
         <CardTitle className="text-lg font-semibold mb-2 line-clamp-1">
-          {product.name}
+          {product.title}
         </CardTitle>
         <p className="text-sm text-gray-600 mb-3 line-clamp-2">
           {product.description}
@@ -323,7 +324,7 @@ const ProductCard = ({ product }: { product: ApiProduct }) => {
   )
 }
 
-// Live Session Card Component (keeping your UI exactly as is)
+// Live Session Card Component
 const LiveSessionCard = ({ session }: { session: any }) => {
   return (
     <Card className="bg-gradient-to-br from-red-50 to-pink-50 border-red-200 hover:shadow-lg transition-shadow">
@@ -466,7 +467,7 @@ const FilterSection = () => {
   )
 }
 
-// Hero Section Component (keeping your UI exactly as is)
+// Hero Section Component
 const HeroSection = () => {
   return (
     <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white py-16 mb-12 rounded-lg">
@@ -492,7 +493,7 @@ const HeroSection = () => {
   )
 }
 
-// Loading Skeleton Component (keeping your UI exactly as is)
+// Loading Skeleton Component
 const ProductSkeleton = () => {
   return (
     <Card>
@@ -518,7 +519,7 @@ const ProductSkeleton = () => {
   )
 }
 
-// Error Component (keeping your UI exactly as is)
+// Error Component
 const ErrorComponent = ({ message, onRetry }: { message: string; onRetry: () => void }) => {
   return (
     <div className="text-center py-16">
@@ -533,7 +534,7 @@ const ErrorComponent = ({ message, onRetry }: { message: string; onRetry: () => 
   )
 }
 
-// Main Homepage Component with enhanced functionality
+// Main Homepage Component
 export default function HomePage() {
   const { 
     filteredProducts, 
@@ -548,18 +549,21 @@ export default function HomePage() {
   } = useProductsStore()
   
   const addNotification = useUIStore((state) => state.addNotification)
+  const router = useRouter()
+  
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
     totalCount: 0,
     hasNextPage: false,
     hasPrevPage: false,
+    limit: 12
   })
   const [sortBy, setSortBy] = useState('createdAt')
   const [sortOrder, setSortOrder] = useState('desc')
   const [usingMockData, setUsingMockData] = useState(false)
 
-  // Mock live sessions (will be replaced with real API later)
+  // Mock live sessions
   const mockLiveSessions = [
     {
       id: 'live1',
@@ -579,109 +583,114 @@ export default function HomePage() {
     },
   ]
 
-  // Enhanced load products function with fallback to mock data
-  const loadProducts = useCallback(async (page = 1) => {
-    setLoading(true)
-    setError(null)
-    
-    try {
-      const response = await fetchProducts({
-        page,
-        limit: 12,
-        search: searchQuery || undefined,
-        category: selectedCategory || undefined,
-        minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
-        maxPrice: priceRange[1] < 999999 ? priceRange[1] : undefined,
-        sortBy,
-        sortOrder,
-      })
+// Enhanced load products function
+const loadProducts = useCallback(async (page = 1) => {
+  setLoading(true)
+  setError(null)
+  
+  try {
+    const response = await fetchProducts({
+      page,
+      limit: 12,
+      search: searchQuery || undefined,
+      category: selectedCategory || undefined,
+      minPrice: priceRange[0] > 0 ? priceRange[0] : undefined,
+      maxPrice: priceRange[1] < 999999 ? priceRange[1] : undefined,
+      sortBy,
+      sortOrder,
+    })
 
-      if (response.success && response.data.products && response.data.products.length > 0) {
-        // Use real API data
-        setProducts(response.data.products)
-        setPagination(response.data.pagination)
-        setUsingMockData(false)
-        
-        if (page === 1) {
-          addNotification({
-            type: 'success',
-            title: 'Products Loaded',
-            message: `Found ${response.data.pagination.totalCount} products from database`,
-          })
-        }
-      } else {
-        // Use mock data when API returns empty or fails
-        console.log('No products from API, using mock data')
-        
-        // Filter mock data based on current filters
-        let filteredMockProducts = [...mockProducts]
-        
-        if (searchQuery) {
-          filteredMockProducts = filteredMockProducts.filter(product =>
-            product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            product.description.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-        }
-        
-        if (selectedCategory) {
-          filteredMockProducts = filteredMockProducts.filter(product =>
-            product.category === selectedCategory
-          )
-        }
-        
-        if (priceRange[0] > 0) {
-          filteredMockProducts = filteredMockProducts.filter(product =>
-            product.price >= priceRange[0]
-          )
-        }
-        
-        if (priceRange[1] < 999999) {
-          filteredMockProducts = filteredMockProducts.filter(product =>
-            product.price <= priceRange[1]
-          )
-        }
+    // Use response directly since fetchProducts already returns parsed JSON
+    const data = response;
+    const products = data.data?.products || []; // Safe access with fallback
+    const pagination = data.data?.pagination; // Safe access
 
-        setProducts(filteredMockProducts)
-        setUsingMockData(true)
-        setPagination({
-          currentPage: 1,
-          totalPages: 1,
-          totalCount: filteredMockProducts.length,
-          hasNextPage: false,
-          hasPrevPage: false,
-        })
-        
-        if (page === 1) {
-          addNotification({
-            type: 'info',
-            title: 'Demo Mode',
-            message: `Showing ${filteredMockProducts.length} demo products`,
-          })
-        }
+    if (data.success && products && products.length > 0) {
+      setProducts(products)
+      if (pagination) {
+        setPagination(pagination)
       }
-    } catch (error) {
-      console.error('Error loading products:', error)
+      setUsingMockData(false)
       
-      // Use mock data on error
-      setProducts(mockProducts)
+      if (page === 1) {
+        addNotification({
+          type: 'success',
+          title: 'Products Loaded',
+          message: `Found ${pagination?.totalCount || products.length} products from database`,
+        })
+      }
+    } else {
+      // Filter mock data based on current filters
+      let filteredMockProducts = [...mockProducts]
+      
+      if (searchQuery) {
+        filteredMockProducts = filteredMockProducts.filter(product =>
+          product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.description.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      }
+      
+      if (selectedCategory) {
+        filteredMockProducts = filteredMockProducts.filter(product =>
+          product.category === selectedCategory
+        )
+      }
+      
+      if (priceRange[0] > 0) {
+        filteredMockProducts = filteredMockProducts.filter(product =>
+          product.price >= priceRange[0]
+        )
+      }
+      
+      if (priceRange[1] < 999999) {
+        filteredMockProducts = filteredMockProducts.filter(product =>
+          product.price <= priceRange[1]
+        )
+      }
+
+      setProducts(filteredMockProducts)
       setUsingMockData(true)
       setPagination({
         currentPage: 1,
         totalPages: 1,
-        totalCount: mockProducts.length,
+        totalCount: filteredMockProducts.length,
         hasNextPage: false,
         hasPrevPage: false,
+        limit: 12
       })
       
-      addNotification({
-        type: 'warning',
-        title: 'Using Demo Data',
-        message: 'Could not connect to database. Showing demo products.',
-      })
-    } finally {
-      setLoading(false)
+      if (page === 1) {
+        addNotification({
+          type: 'info',
+          title: 'Demo Mode',
+          message: `Showing ${filteredMockProducts.length} demo products`,
+        })
+      }
     }
-  }, [searchQuery, selectedCategory, priceRange, sortBy, sortOrder, setProducts, setLoading, setError, addNotification])
+  } catch (error) {
+    console.error('Error loading products:', error)
+    
+    // Use mock data on error
+    setProducts(mockProducts)
+    setUsingMockData(true)
+    setPagination({
+      currentPage: 1,
+      totalPages: 1,
+      totalCount: mockProducts.length,
+      hasNextPage: false,
+      hasPrevPage: false,
+      limit: 12
+    })
+    
+    addNotification({
+      type: 'warning',
+      title: 'Using Demo Data',
+      message: 'Could not connect to database. Showing demo products.',
+    })
+  } finally {
+    setLoading(false)
+  }
+}, [searchQuery, selectedCategory, priceRange, sortBy, sortOrder, setProducts, setLoading, setError, addNotification])
 
   // Load products on component mount and when filters change
   useEffect(() => {
@@ -705,9 +714,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <Header />
-        
+      <div className="container mx-auto px-4 py-8">        
         {/* Demo mode indicator */}
         {usingMockData && (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-lg">
@@ -782,8 +789,8 @@ export default function HomePage() {
                 <option value="createdAt-asc">Oldest First</option>
                 <option value="price-asc">Price: Low to High</option>
                 <option value="price-desc">Price: High to Low</option>
-                <option value="name-asc">Name: A to Z</option>
-                <option value="name-desc">Name: Z to A</option>
+                <option value="title-asc">Title: A to Z</option>
+                <option value="title-desc">Title: Z to A</option>
               </select>
             </div>
           </div>
@@ -803,7 +810,11 @@ export default function HomePage() {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard 
+                    key={product.id} 
+                    product={product} 
+                    onClick={() => router.push(`/products/${product.id}`)}
+                  />
                 ))}
               </div>
               

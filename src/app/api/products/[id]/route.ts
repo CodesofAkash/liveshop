@@ -1,7 +1,6 @@
-// src/app/api/products/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@clerk/nextjs'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 
 // GET /api/products/[id] - Fetch single product
 export async function GET(
@@ -9,38 +8,81 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const product = await prisma.product.findUnique({
-      where: { id: params.id },
-      include: {
-        seller: {
+    const { id } = await params;
+    
+    // First get the product without seller relation to debug
+    const productBasic = await prisma.product.findUnique({
+      where: { id },
+    })
+    
+    if (!productBasic) {
+      return NextResponse.json(
+        { success: false, error: 'Product not found' },
+        { status: 404 }
+      )
+    }
+    
+    console.log('Product sellerId:', productBasic.sellerId)
+    
+    // Try to get seller separately with better error handling
+    let seller = null
+    try {
+      console.log('Product sellerId:', productBasic.sellerId)
+      
+      // First try by MongoDB _id (for new products)
+      seller = await prisma.user.findUnique({
+        where: { id: productBasic.sellerId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+        },
+      })
+      
+      // If not found, try by clerkId (for old products that have clerkId as sellerId)
+      if (!seller) {
+        console.log('Seller not found by _id, trying by clerkId')
+        seller = await prisma.user.findUnique({
+          where: { clerkId: productBasic.sellerId },
           select: {
             id: true,
             name: true,
             email: true,
             createdAt: true,
           },
-        },
-        reviews: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
+        })
+        
+        if (seller) {
+          console.log('Found seller by clerkId - this product needs migration')
+        }
+      } else {
+        console.log('Found seller by _id - this product is correct')
+      }
+    } catch (sellerError) {
+      console.error('Error fetching seller:', sellerError)
+    }
+    
+    // Get reviews
+    const reviews = await prisma.review.findMany({
+      where: { productId: id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
+      orderBy: {
+        createdAt: 'desc',
+      },
     })
 
-    if (!product) {
-      return NextResponse.json(
-        { success: false, error: 'Product not found' },
-        { status: 404 }
-      )
+    const product = {
+      ...productBasic,
+      seller,
+      reviews,
     }
 
     // Calculate average rating
@@ -73,13 +115,41 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = auth()
+    const { userId } = await auth()
     
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
       )
+    }
+
+    // Find user by clerkId to get MongoDB ObjectId
+    let user = await prisma.user.findUnique({
+      where: { clerkId: userId }
+    })
+
+    // If user doesn't exist, create them first
+    if (!user) {
+      try {
+        const client = await clerkClient()
+        const clerkUser = await client.users.getUser(userId)
+        user = await prisma.user.create({
+          data: {
+            clerkId: userId,
+            email: clerkUser.emailAddresses?.[0]?.emailAddress || '',
+            name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || null,
+            avatar: clerkUser.imageUrl || null,
+            role: 'SELLER',
+          }
+        })
+      } catch (createError) {
+        console.error('Error creating user:', createError)
+        return NextResponse.json(
+          { success: false, error: 'Failed to create user account' },
+          { status: 500 }
+        )
+      }
     }
 
     // Check if product exists and user owns it
@@ -94,7 +164,7 @@ export async function PUT(
       )
     }
 
-    if (existingProduct.sellerId !== userId) {
+    if (existingProduct.sellerId !== user.id) { // ✅ Compare with user.id instead of userId
       return NextResponse.json(
         { success: false, error: 'Forbidden - You can only update your own products' },
         { status: 403 }
@@ -147,13 +217,41 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = auth()
+    const { userId } = await auth()
     
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
       )
+    }
+
+    // Find user by clerkId to get MongoDB ObjectId
+    let user = await prisma.user.findUnique({
+      where: { clerkId: userId }
+    })
+
+    // If user doesn't exist, create them first
+    if (!user) {
+      try {
+        const client = await clerkClient()
+        const clerkUser = await client.users.getUser(userId)
+        user = await prisma.user.create({
+          data: {
+            clerkId: userId,
+            email: clerkUser.emailAddresses?.[0]?.emailAddress || '',
+            name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || null,
+            avatar: clerkUser.imageUrl || null,
+            role: 'SELLER',
+          }
+        })
+      } catch (createError) {
+        console.error('Error creating user:', createError)
+        return NextResponse.json(
+          { success: false, error: 'Failed to create user account' },
+          { status: 500 }
+        )
+      }
     }
 
     // Check if product exists and user owns it
@@ -168,7 +266,7 @@ export async function DELETE(
       )
     }
 
-    if (existingProduct.sellerId !== userId) {
+    if (existingProduct.sellerId !== user.id) { // ✅ Compare with user.id instead of userId
       return NextResponse.json(
         { success: false, error: 'Forbidden - You can only delete your own products' },
         { status: 403 }

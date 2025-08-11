@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@clerk/nextjs'
+import { auth } from '@clerk/nextjs/server'
 
 // GET /api/orders/[id] - Fetch single order
 export async function GET(
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = auth()
+    const { userId } = await auth()
     
     if (!userId) {
       return NextResponse.json(
@@ -17,10 +17,22 @@ export async function GET(
       )
     }
 
+    // Find user by clerkId
+    const user = await prisma.user.findUnique({
+      where: { clerkId: userId }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      )
+    }
+
     const order = await prisma.order.findFirst({
       where: { 
         id: params.id,
-        userId, // Ensure user can only access their own orders
+        buyerId: user.id, // ✅ Use user's MongoDB ObjectId
       },
       include: {
         items: {
@@ -28,9 +40,11 @@ export async function GET(
             product: {
               select: {
                 id: true,
-                name: true,
+                title: true,
+                name: true, // ✅ Include both for compatibility
                 images: true,
                 price: true,
+                brand: true,
                 seller: {
                   select: {
                     id: true,
@@ -39,6 +53,14 @@ export async function GET(
                 },
               },
             },
+          },
+        },
+        buyer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
           },
         },
       },
@@ -51,9 +73,21 @@ export async function GET(
       )
     }
 
+    // ✅ Transform data to match frontend expectations
+    const transformedOrder = {
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        product: {
+          ...item.product,
+          title: item.product.title || item.product.name, // ✅ Ensure title exists
+        }
+      }))
+    }
+
     return NextResponse.json({
       success: true,
-      data: order,
+      data: transformedOrder,
     })
   } catch (error) {
     console.error('Error fetching order:', error)
@@ -70,7 +104,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = auth()
+    const { userId } = await auth()
     
     if (!userId) {
       return NextResponse.json(
@@ -79,8 +113,19 @@ export async function PATCH(
       )
     }
 
+    const user = await prisma.user.findUnique({
+      where: { clerkId: userId }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
-    const { status } = body
+    const { status, trackingNumber, adminNotes } = body
 
     if (!status) {
       return NextResponse.json(
@@ -93,7 +138,7 @@ export async function PATCH(
     const existingOrder = await prisma.order.findFirst({
       where: {
         id: params.id,
-        userId,
+        buyerId: user.id, // ✅ Use user's MongoDB ObjectId
       },
     })
 
@@ -104,14 +149,26 @@ export async function PATCH(
       )
     }
 
-    // Update order status
+    // Update order
     const order = await prisma.order.update({
       where: { id: params.id },
-      data: { status },
+      data: { 
+        status: status.toUpperCase(), // ✅ Convert to uppercase for enum
+        ...(trackingNumber !== undefined && { trackingNumber }),
+        ...(adminNotes !== undefined && { adminNotes }),
+      },
       include: {
         items: {
           include: {
             product: true,
+          },
+        },
+        buyer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
           },
         },
       },

@@ -51,6 +51,7 @@ import {
   BarChart3,
   Users
 } from 'lucide-react'
+import EnhancedSearch from './EnhancedSearch'
 
 // Cart Sidebar Component
 const CartSidebar = () => {
@@ -61,6 +62,11 @@ const CartSidebar = () => {
     console.log('Proceeding to checkout...')
     setCartOpen(false)
   }
+
+  const router = useRouter();
+
+  // Calculate total safely
+  const cartTotal = total || items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   return (
     <Sheet open={isOpen} onOpenChange={setCartOpen}>
@@ -138,10 +144,10 @@ const CartSidebar = () => {
               <div className="border-t pt-4 space-y-4">
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Total:</span>
-                  <span>₹{total.toLocaleString()}</span>
+                  <span>₹{cartTotal.toLocaleString()}</span>
                 </div>
-                <Button onClick={handleCheckout} className="w-full" size="lg">
-                  Proceed to Checkout
+                <Button onClick={() => {router.push('/cart');setCartOpen(false);}} className="w-full" size="lg">
+                  Go to Cart Page
                 </Button>
                 <Button
                   variant="outline"
@@ -308,6 +314,11 @@ const UserMenu = () => {
             Wishlist
           </DropdownMenuItem>
 
+          <DropdownMenuItem onClick={() => router.push('/dashboard')}>
+            <Store className="h-4 w-4 mr-2" />
+            Dashboard
+          </DropdownMenuItem>
+
           {/* Seller Options */}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => router.push('/seller/dashboard')}>
@@ -448,7 +459,8 @@ export default function Header() {
 
             {/* Search Bar */}
             <div className="hidden md:flex flex-1 max-w-2xl mx-8">
-              <SearchBar />
+              <EnhancedSearch placeholder="Search products, brands, categories..." className="max-w-md" />
+              {/* <SearchBar /> */}
             </div>
 
             {/* Right Section */}

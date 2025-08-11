@@ -5,6 +5,7 @@ import { WebhookEvent } from '@clerk/nextjs/server'
 import { createUser, updateUser, deleteUser } from '@/lib/user'
 
 export async function POST(req: NextRequest) {
+
   // Get the headers
   const headerPayload = await headers()
   const svix_id = headerPayload.get('svix-id')
@@ -65,8 +66,6 @@ export async function POST(req: NextRequest) {
         avatar: image_url || null,
         role: 'BUYER', // Default role
       })
-
-      console.log('User created in database:', user)
       
       return NextResponse.json({ 
         success: true, 

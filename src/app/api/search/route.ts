@@ -23,22 +23,22 @@ export async function GET(request: NextRequest) {
       const suggestions = await prisma.product.findMany({
         where: {
           OR: [
-            { name: { contains: query, mode: 'insensitive' } },
+            { title: { contains: query, mode: 'insensitive' } },
             { category: { contains: query, mode: 'insensitive' } },
           ],
         },
         select: {
-          name: true,
+          title: true,
           category: true,
         },
-        distinct: ['name'],
+        distinct: ['title'],
         take: 5,
       })
 
       return NextResponse.json({
         success: true,
         data: {
-          suggestions: suggestions.map(p => p.name),
+          suggestions: suggestions.map(p => p.title),
         },
       })
     }
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const products = await prisma.product.findMany({
       where: {
         OR: [
-          { name: { contains: query, mode: 'insensitive' } },
+          { title: { contains: query, mode: 'insensitive' } },
           { description: { contains: query, mode: 'insensitive' } },
           { category: { contains: query, mode: 'insensitive' } },
         ],
