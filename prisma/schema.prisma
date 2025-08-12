@@ -113,6 +113,7 @@ model LiveSession {
 // Orders
 model Order {
   id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String
   orderNumber   String?     @unique
   
   // Relations - Fix buyer relation
@@ -132,6 +133,7 @@ model Order {
   paymentStatus PaymentStatus @default(PENDING)
   paymentMethod String?
   paymentId     String?
+  paidAt        DateTime?
   
   // Shipping - Make required fields
   shippingAddress Json
@@ -145,6 +147,7 @@ model Order {
   
   // Tracking
   trackingNumber String?
+
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -304,7 +307,8 @@ enum OrderStatus {
 
 enum PaymentStatus {
   PENDING
-  PAID
+  PROCESSING
+  COMPLETED
   FAILED
   REFUNDED
 }

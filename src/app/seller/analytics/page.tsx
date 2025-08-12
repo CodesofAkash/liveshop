@@ -105,8 +105,8 @@ export default function SellerAnalytics() {
       if (data.success) {
         setAnalytics(data.data)
       }
-    } catch (error) {
-      console.error('Error fetching analytics:', error)
+    } catch {
+      // Error handling could be added here
     } finally {
       setLoading(false)
     }
@@ -114,7 +114,6 @@ export default function SellerAnalytics() {
 
   const downloadReport = () => {
     // Implementation for downloading analytics report
-    console.log('Downloading analytics report...')
   }
 
   if (loading || !analytics) {

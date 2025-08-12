@@ -131,8 +131,7 @@ function SearchResultsContent() {
         setTotalPages(1);
         setTotalResults(0);
       }
-    } catch (error) {
-      console.error('Search error:', error);
+    } catch {
       setProducts([]);
     } finally {
       setLoading(false);
@@ -183,8 +182,9 @@ function SearchResultsContent() {
       <div className="aspect-square relative overflow-hidden">
         <Image
           src={product.imageUrl}
-          alt={product.title}
+          alt={product.title || 'Product image'}
           fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover group-hover:scale-105 transition-transform duration-300"
         />
         <div className="absolute top-2 right-2 flex gap-2">
@@ -267,8 +267,9 @@ function SearchResultsContent() {
           <div className="w-32 h-32 relative flex-shrink-0 overflow-hidden rounded-lg">
             <Image
               src={product.imageUrl}
-              alt={product.title}
+              alt={product.title || 'Product image'}
               fill
+              sizes="128px"
               className="object-cover"
             />
             {!product.inStock && (
@@ -348,7 +349,6 @@ function SearchResultsContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-6">
-        {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Button
             variant="outline"

@@ -15,7 +15,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user by clerkId to get MongoDB ObjectId
-    console.log('Looking up user with clerkId:', userId)
     let user = await prisma.user.findUnique({
       where: { clerkId: userId },
       select: {
@@ -27,21 +26,9 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    console.log('User lookup result:', { 
-      userId, 
-      foundUser: user ? { 
-        id: user.id, 
-        clerkId: user.clerkId,
-        idType: typeof user.id,
-        idLength: user.id?.length,
-        fullUser: JSON.stringify(user, null, 2) 
-      } : null 
-    })
-
     // If user doesn't exist, create them first
     if (!user) {
       try {
-        console.log('Creating new user with clerkId:', userId)
         // Get user info from Clerk
         const client = await clerkClient()
         const clerkUser = await client.users.getUser(userId)
@@ -55,9 +42,7 @@ export async function POST(request: NextRequest) {
             role: 'SELLER', // Since they're creating a product, make them a seller
           }
         })
-        console.log('Created new user:', { id: user.id, clerkId: user.clerkId })
-      } catch (createError) {
-        console.error('Error creating user:', createError)
+      } catch {
         return NextResponse.json(
           { success: false, error: 'Failed to create user account. Please try again.' },
           { status: 500 }
@@ -66,8 +51,6 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-
-    console.log('Received request body:', JSON.stringify(body, null, 2))
 
     const { 
       title,

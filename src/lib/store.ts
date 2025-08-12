@@ -181,6 +181,8 @@ interface CartState {
   total: number
   itemCount: number
   isOpen: boolean
+  discount: number
+  discountCode: string | null
   
   // Actions
   addItem: (product: Product, quantity?: number) => void
@@ -193,6 +195,9 @@ interface CartState {
   getCartTotal: () => number
   toggleCart: () => void
   setCartOpen: (isOpen: boolean) => void
+  applyDiscount: (code: string, amount: number) => void
+  removeDiscount: () => void
+  setDiscount: (amount: number) => void
 }
 
 export const useCartStore = create<CartState>()(
@@ -202,6 +207,8 @@ export const useCartStore = create<CartState>()(
       total: 0,
       itemCount: 0,
       isOpen: false,
+      discount: 0,
+      discountCode: null,
 
       addItem: (product, quantity = 1) => {
         const { items } = get()
@@ -245,7 +252,7 @@ export const useCartStore = create<CartState>()(
       },
 
       clearCart: () => {
-        set({ items: [], total: 0, itemCount: 0 })
+        set({ items: [], total: 0, itemCount: 0, discount: 0, discountCode: null })
       },
 
       calculateTotals: () => {
@@ -266,8 +273,24 @@ export const useCartStore = create<CartState>()(
       },
 
       getCartTotal: () => {
-        const { items } = get()
-        return items.reduce((total, item) => total + (item.price * item.quantity), 0)
+        const { items, discount } = get()
+        const subtotal = items.reduce((total, item) => total + (item.price * item.quantity), 0)
+        return Math.max(0, subtotal - discount)
+      },
+
+      applyDiscount: (code, amount) => {
+        set({ discount: amount, discountCode: code })
+        get().calculateTotals()
+      },
+
+      removeDiscount: () => {
+        set({ discount: 0, discountCode: null })
+        get().calculateTotals()
+      },
+
+      setDiscount: (amount) => {
+        set({ discount: amount })
+        get().calculateTotals()
       },
 
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),

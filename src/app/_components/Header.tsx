@@ -59,7 +59,6 @@ const CartSidebar = () => {
 
   const handleCheckout = () => {
     // This will redirect to checkout page
-    console.log('Proceeding to checkout...')
     setCartOpen(false)
   }
 

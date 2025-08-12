@@ -100,12 +100,10 @@ export default function SellerOrders() {
         setOrders(data.data) // ✅ data.data is now the orders array
         setTotalPages(data.pagination.totalPages)
       } else {
-        console.error('Failed to fetch orders:', data.error)
         // ✅ Set empty array on error instead of keeping old data
         setOrders([])
       }
-    } catch (error) {
-      console.error('Error fetching orders:', error)
+    } catch {
       setOrders([]) // ✅ Set empty array on error
     } finally {
       setLoading(false)
@@ -128,8 +126,8 @@ export default function SellerOrders() {
           ))
         }
       }
-    } catch (error) {
-      console.error('Error updating order status:', error)
+    } catch {
+      // Error handling could be added here
     }
   }
 
@@ -392,7 +390,7 @@ export default function SellerOrders() {
                   )}
                   
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/seller/orders/${order.id}`}>
+                    <Link href={`/orders/${order.id}`}>
                       <Eye className="mr-2 h-4 w-4" />
                       View Details
                     </Link>

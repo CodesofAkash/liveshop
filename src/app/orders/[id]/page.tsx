@@ -126,11 +126,9 @@ export default function OrderDetails() {
         setNewStatus(data.data.status)
         setAdminNotes(data.data.adminNotes || '')
       } else {
-        console.error('Failed to fetch order:', data.error)
         setOrder(null)
       }
-    } catch (error) {
-      console.error('Error fetching order:', error)
+    } catch {
       setOrder(null)
     } finally {
       setLoading(false)
@@ -160,8 +158,8 @@ export default function OrderDetails() {
           setEditingTracking(false)
         }
       }
-    } catch (error) {
-      console.error('Error updating order:', error)
+    } catch {
+      // Error handling could be added here
     } finally {
       setUpdating(false)
     }
@@ -203,7 +201,6 @@ export default function OrderDetails() {
 
   const downloadInvoice = () => {
     // Implementation for downloading invoice
-    console.log('Downloading invoice for order:', orderId)
   }
 
   if (loading) {
@@ -250,7 +247,7 @@ export default function OrderDetails() {
             The order you're looking for doesn't exist or you don't have permission to view it.
           </p>
           <Button asChild>
-            <Link href="/seller/orders">
+            <Link href="/orders">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Orders
             </Link>
@@ -266,7 +263,7 @@ export default function OrderDetails() {
       <div className="flex justify-between items-start">
         <div className="flex items-center space-x-4">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/seller/orders">
+            <Link href="/orders">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Orders
             </Link>

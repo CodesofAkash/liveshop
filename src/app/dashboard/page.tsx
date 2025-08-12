@@ -165,8 +165,7 @@ export default function UserDashboard() {
         setUserStats(mockStats);
         setLoading(false);
       }, 1000);
-    } catch (error) {
-      console.error('Error fetching user data:', error);
+    } catch {
       setLoading(false);
     }
   };
@@ -216,7 +215,6 @@ export default function UserDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">

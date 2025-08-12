@@ -108,8 +108,8 @@ export default function SellerDashboard() {
       if (ordersData.success) setOrders(ordersData.data)
       if (analyticsData.success) setAnalytics(analyticsData.data)
       
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error)
+    } catch {
+      // Error handling could be added here
     } finally {
       setLoading(false)
     }
@@ -126,8 +126,8 @@ export default function SellerDashboard() {
       if (response.ok) {
         setProducts(products.filter(p => p.id !== productId))
       }
-    } catch (error) {
-      console.error('Error deleting product:', error)
+    } catch {
+      // Error handling could be added here
     }
   }
 

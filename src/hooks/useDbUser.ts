@@ -52,7 +52,6 @@ export function useDbUser() {
           throw new Error('Failed to fetch user data')
         }
       } catch (err) {
-        console.error('Error fetching user:', err)
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setLoading(false)

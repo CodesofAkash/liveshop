@@ -37,10 +37,8 @@ export async function createUser(data: CreateUserData) {
       },
     })
     
-    console.log('User created successfully:', user.id)
     return user
   } catch (error) {
-    console.error('Error creating user:', error)
     throw new Error('Failed to create user in database')
   }
 }
@@ -55,10 +53,8 @@ export async function updateUser(clerkId: string, data: UpdateUserData) {
       data,
     })
     
-    console.log('User updated successfully:', user.id)
     return user
-  } catch (error) {
-    console.error('Error updating user:', error)
+  } catch {
     throw new Error('Failed to update user in database')
   }
 }
@@ -72,10 +68,8 @@ export async function deleteUser(clerkId: string) {
       where: { clerkId },
     })
     
-    console.log('User deleted successfully:', clerkId)
     return true
-  } catch (error) {
-    console.error('Error deleting user:', error)
+  } catch {
     throw new Error('Failed to delete user from database')
   }
 }
@@ -96,8 +90,7 @@ export async function getUserByClerkId(clerkId: string) {
     })
     
     return user
-  } catch (error) {
-    console.error('Error fetching user:', error)
+  } catch {
     throw new Error('Failed to fetch user from database')
   }
 }
@@ -118,8 +111,7 @@ export async function getUserByEmail(email: string) {
     })
     
     return user
-  } catch (error) {
-    console.error('Error fetching user by email:', error)
+  } catch {
     throw new Error('Failed to fetch user from database')
   }
 }
@@ -135,8 +127,7 @@ export async function userExists(clerkId: string): Promise<boolean> {
     })
     
     return !!user
-  } catch (error) {
-    console.error('Error checking if user exists:', error)
+  } catch {
     return false
   }
 }

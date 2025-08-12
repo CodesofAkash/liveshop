@@ -76,8 +76,7 @@ export default function EnhancedSearch({
           const data = await response.json();
           setSuggestions(data.products || []);
         }
-      } catch (error) {
-        console.error('Search error:', error);
+      } catch {
         setSuggestions([]);
       } finally {
         setLoading(false);

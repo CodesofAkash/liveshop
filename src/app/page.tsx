@@ -47,7 +47,6 @@ const fetchProducts = async (params: {
       },
     })
 
-    console.log("Response = ", response);
     if (!response.ok) {
       if (response.status === 404) {
         return {
@@ -71,7 +70,6 @@ const fetchProducts = async (params: {
     const result = await response.json()
     return result
   } catch (error) {
-    console.error('API Error:', error)
     throw error
   }
 }
@@ -97,8 +95,7 @@ const fetchCategories = async () => {
     }
 
     return await response.json()
-  } catch (error) {
-    console.error('Categories API Error:', error)
+  } catch {
     return {
       success: true,
       data: [
@@ -384,8 +381,8 @@ const FilterSection = () => {
         if (response.success) {
           setCategories(response.data)
         }
-      } catch (error) {
-        console.error('Failed to load categories:', error)
+      } catch {
+        // Error handling could be added here
       } finally {
         setLoadingCategories(false)
       }
@@ -667,9 +664,7 @@ const loadProducts = useCallback(async (page = 1) => {
         })
       }
     }
-  } catch (error) {
-    console.error('Error loading products:', error)
-    
+  } catch {
     // Use mock data on error
     setProducts(mockProducts)
     setUsingMockData(true)

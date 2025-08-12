@@ -82,21 +82,20 @@ export async function GET(request: NextRequest) {
               },
             },
           },
-          buyer: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
+          // ✅ Remove buyer relation to avoid the relation error
         },
       }),
       prisma.order.count({ where }),
     ])
 
-    // ✅ Transform data to match frontend expectations
+    // ✅ Transform data to match frontend expectations and add buyer info
     const transformedOrders = orders.map((order: any) => ({
       ...order,
+      buyer: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      },
       items: order.items.map((item: any) => ({
         ...item,
         product: {
@@ -169,7 +168,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { items, shippingAddress, paymentStatus, paymentMethod } = body
+    const { items, shippingAddress, paymentStatus, paymentMethod, discount = 0 } = body
 
     if (!items || items.length === 0) {
       return NextResponse.json(
@@ -216,20 +215,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate other amounts
-    const tax = subtotal * 0.1 // 10% tax
+    const tax = (subtotal - discount) * 0.18 // 18% GST on discounted amount
     const shipping = subtotal > 500 ? 0 : 50 // Free shipping over ₹500
-    const total = subtotal + tax + shipping
+    const total = subtotal - discount + tax + shipping
 
     // Generate order number
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
 
     // Create order with transaction
     const order = await prisma.$transaction(async (tx) => {
+      // First create the order without items
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
-          buyerId: user.id, // ✅ Use user's MongoDB ObjectId
+          userId: userId, // Add the missing userId field from Clerk auth
+          buyerId: user.id,
           subtotal,
+          discount,
           tax,
           shipping,
           total,
@@ -237,18 +239,15 @@ export async function POST(request: NextRequest) {
           paymentStatus: paymentStatus || 'PENDING',
           paymentMethod,
           shippingAddress: shippingAddress || {},
-          items: {
-            create: orderItems,
-          },
         },
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-          // ✅ Remove buyer relation for now to avoid the relation error
-        },
+      })
+
+      // Then create the order items
+      await tx.orderItem.createMany({
+        data: orderItems.map(item => ({
+          ...item,
+          orderId: newOrder.id,
+        })),
       })
 
       // Update product inventory
@@ -263,7 +262,19 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      return newOrder
+      // Return the order with items fetched separately
+      const orderWithItems = await tx.order.findUnique({
+        where: { id: newOrder.id },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      })
+
+      return orderWithItems
     })
 
     // ✅ Fetch buyer information separately to avoid relation issues

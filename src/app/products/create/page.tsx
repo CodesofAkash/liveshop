@@ -187,8 +187,7 @@ export default function CreateProductPage() {
         const error = await response.text();
         toast.error(`Failed to create product: ${error}`);
       }
-    } catch (error) {
-      console.error('Error creating product:', error);
+    } catch {
       toast.error('An error occurred while creating the product');
     } finally {
       setLoading(false);
@@ -213,19 +212,9 @@ export default function CreateProductPage() {
     }
   };
 
-  // Sample image URLs for quick testing
-  const sampleImages = [
-    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500',
-    'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500',
-    'https://images.unsplash.com/photo-1544117519-31a4b719223d?w=500',
-    'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=500',
-    'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500'
-  ];
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Button
             variant="outline"
@@ -347,24 +336,6 @@ export default function CreateProductPage() {
                       <p className="text-sm text-red-500 mt-1">{errors.imageUrl}</p>
                     )}
                   </div>
-
-                  {/* Sample Images */}
-                  <div>
-                    <Label>Quick Select (Sample Images)</Label>
-                    <div className="grid grid-cols-5 gap-2 mt-2">
-                      {sampleImages.map((url, index) => (
-                        <button
-                          key={index}
-                          type="button"
-                          onClick={() => handleImageUrlChange(url)}
-                          className="aspect-square border rounded-lg overflow-hidden hover:border-blue-500 transition-colors"
-                        >
-                          <img src={url} alt={`Sample ${index + 1}`} className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
                   {/* Image Preview */}
                   {imagePreview && (
                     <div>

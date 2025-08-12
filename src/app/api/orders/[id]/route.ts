@@ -5,7 +5,7 @@ import { auth } from '@clerk/nextjs/server'
 // GET /api/orders/[id] - Fetch single order
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -16,6 +16,9 @@ export async function GET(
         { status: 401 }
       )
     }
+
+    // Await params for Next.js 15+
+    const { id } = await params
 
     // Find user by clerkId
     const user = await prisma.user.findUnique({
@@ -31,7 +34,7 @@ export async function GET(
 
     const order = await prisma.order.findFirst({
       where: { 
-        id: params.id,
+        id: id,
         buyerId: user.id, // ✅ Use user's MongoDB ObjectId
       },
       include: {
@@ -41,28 +44,15 @@ export async function GET(
               select: {
                 id: true,
                 title: true,
-                name: true, // ✅ Include both for compatibility
                 images: true,
                 price: true,
                 brand: true,
-                seller: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
+                sellerId: true, // ✅ Get sellerId to fetch seller separately
               },
             },
           },
         },
-        buyer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
+        // ✅ Remove buyer relation to avoid the relation error
       },
     })
 
@@ -73,15 +63,44 @@ export async function GET(
       )
     }
 
-    // ✅ Transform data to match frontend expectations
+    // ✅ Transform data to match frontend expectations and fetch sellers
     const transformedOrder = {
       ...order,
-      items: order.items.map(item => ({
-        ...item,
-        product: {
-          ...item.product,
-          title: item.product.title || item.product.name, // ✅ Ensure title exists
+      buyer: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+      },
+      items: await Promise.all(order.items.map(async item => {
+        // Fetch seller information separately with fallback
+        let seller = null;
+        try {
+          // Try to find seller by MongoDB ObjectId first
+          seller = await prisma.user.findUnique({
+            where: { id: item.product.sellerId },
+            select: { id: true, name: true }
+          });
+          
+          // If not found, try by clerkId (for legacy products)
+          if (!seller) {
+            seller = await prisma.user.findUnique({
+              where: { clerkId: item.product.sellerId },
+              select: { id: true, name: true }
+            });
+          }
+        } catch (sellerError) {
+          console.warn('Could not fetch seller:', sellerError);
         }
+
+        return {
+          ...item,
+          product: {
+            ...item.product,
+            title: item.product.title, // ✅ Use title field
+            seller: seller || { id: 'unknown', name: 'Unknown Seller' }
+          }
+        };
       }))
     }
 
@@ -101,7 +120,7 @@ export async function GET(
 // PATCH /api/orders/[id] - Update order status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -112,6 +131,9 @@ export async function PATCH(
         { status: 401 }
       )
     }
+
+    // Await params for Next.js 15+
+    const { id } = await params
 
     const user = await prisma.user.findUnique({
       where: { clerkId: userId }
@@ -125,11 +147,12 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { status, trackingNumber, adminNotes } = body
+    const { status, trackingNumber, adminNotes, paymentStatus, paymentMethod, paymentId } = body
 
-    if (!status) {
+    // Either status or paymentStatus should be provided
+    if (!status && !paymentStatus) {
       return NextResponse.json(
-        { success: false, error: 'Status is required' },
+        { success: false, error: 'Status or payment status is required' },
         { status: 400 }
       )
     }
@@ -137,7 +160,7 @@ export async function PATCH(
     // Check if order exists and user owns it
     const existingOrder = await prisma.order.findFirst({
       where: {
-        id: params.id,
+        id: id,
         buyerId: user.id, // ✅ Use user's MongoDB ObjectId
       },
     })
@@ -151,9 +174,12 @@ export async function PATCH(
 
     // Update order
     const order = await prisma.order.update({
-      where: { id: params.id },
+      where: { id: id },
       data: { 
-        status: status.toUpperCase(), // ✅ Convert to uppercase for enum
+        ...(status && { status: status.toUpperCase() }), // ✅ Convert to uppercase for enum
+        ...(paymentStatus && { paymentStatus: paymentStatus.toUpperCase() }),
+        ...(paymentMethod && { paymentMethod }),
+        ...(paymentId && { paymentId }),
         ...(trackingNumber !== undefined && { trackingNumber }),
         ...(adminNotes !== undefined && { adminNotes }),
       },
