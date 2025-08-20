@@ -19,11 +19,12 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useCartStore } from '@/lib/store';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/utils';
 
 interface PromoCode {
   code: string;
@@ -227,7 +228,7 @@ const Page = () => {
                         </div>
                         
                         <div className="text-right">
-                          <p className="font-bold text-lg">₹{item.price.toFixed(2)}</p>
+                          <p className="font-bold text-lg">{formatCurrency(item.price)}</p>
                           <p className="text-sm text-gray-500">each</p>
                         </div>
                       </div>
@@ -280,7 +281,7 @@ const Page = () => {
                       <div className="mt-3 pt-3 border-t">
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">Item total:</span>
-                          <span className="font-semibold">₹{(item.price * item.quantity).toFixed(2)}</span>
+                          <span className="font-semibold">{formatCurrency(item.price * item.quantity)}</span>
                         </div>
                       </div>
                     </div>
@@ -364,23 +365,23 @@ const Page = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Subtotal ({items.length} items)</span>
-                    <span>₹{subtotal.toFixed(2)}</span>
+                    <span>{formatCurrency(subtotal)}</span>
                   </div>
                   
                   <div className="flex justify-between">
                     <span className="text-gray-600">Shipping</span>
-                    <span>{shipping === 0 ? 'Free' : `₹${shipping.toFixed(2)}`}</span>
+                    <span>{shipping === 0 ? 'Free' : formatCurrency(shipping)}</span>
                   </div>
                   
                   <div className="flex justify-between">
                     <span className="text-gray-600">Tax</span>
-                    <span>₹{tax.toFixed(2)}</span>
+                    <span>{formatCurrency(tax)}</span>
                   </div>
                   
                   {discount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Discount ({appliedPromo?.code})</span>
-                      <span>-₹{discount.toFixed(2)}</span>
+                      <span>-{formatCurrency(discount)}</span>
                     </div>
                   )}
                   
@@ -388,7 +389,7 @@ const Page = () => {
                   
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span>₹{total.toFixed(2)}</span>
+                    <span>{formatCurrency(total)}</span>
                   </div>
                 </div>
 
@@ -417,11 +418,11 @@ const Page = () => {
                 </div>
 
                 {/* Free Shipping Notice */}
-                {subtotal < 50 && (
+                {subtotal < 2000 && (
                   <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
                     <Truck className="h-4 w-4 text-blue-600" />
                     <span className="text-sm text-blue-800">
-                      Add ₹{(50 - subtotal).toFixed(2)} more for free shipping!
+                      Add {formatCurrency(2000 - subtotal)} more for free shipping!
                     </span>
                   </div>
                 )}

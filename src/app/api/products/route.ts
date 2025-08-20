@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { ProductStatus } from '@prisma/client'
+import { formatCurrency } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -207,7 +208,7 @@ export async function POST(request: NextRequest) {
         ...product,
         // Add computed fields for frontend
         inStock: product.inventory > 0,
-        priceFormatted: `₹${product.price.toFixed(2)}`,
+        priceFormatted: formatCurrency(product.price),
         createdAgo: 'Just now'
       },
     }, { status: 201 })
@@ -303,6 +304,17 @@ export async function GET(request: NextRequest) {
       where.status = 'ACTIVE'
     }
 
+    // Debug: Log the where clause to see what we're filtering
+    console.log('Products API query where clause:', JSON.stringify(where, null, 2))
+    
+    // Check total products in database first
+    const allProductsCount = await prisma.product.count()
+    console.log('Total products in database:', allProductsCount)
+    
+    // Check active products count
+    const activeProductsCount = await prisma.product.count({ where: { status: 'ACTIVE' } })
+    console.log('Active products count:', activeProductsCount)
+    
     // Execute query with pagination
     const [products, total] = await Promise.all([
       prisma.product.findMany({
@@ -322,6 +334,8 @@ export async function GET(request: NextRequest) {
       }),
       prisma.product.count({ where })
     ])
+    
+    console.log('Query returned', products.length, 'products out of', total, 'total matching')
 
     const totalPages = Math.ceil(total / limit)
 

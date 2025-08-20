@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCartStore } from '@/lib/store';
 import { useUser } from '@clerk/nextjs';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/utils';
 
 interface Product {
   id: string;
@@ -101,7 +102,7 @@ export default function ProductDetailPage() {
           features: [
             'Premium build quality',
             '30-day money back guarantee',
-            'Free shipping on orders over $50',
+            'Free shipping on orders over ₹2000',
             '24/7 customer support'
           ],
           specifications: {
@@ -127,7 +128,14 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (!product) return;
     
-    addItem(product);
+    // Check if user is authenticated
+    if (!user) {
+      toast.error('Please sign in to add items to cart');
+      router.push('/sign-in?redirect_url=' + encodeURIComponent(window.location.pathname));
+      return;
+    }
+    
+    addItem(product, quantity);
     
     toast.success(`Added ${quantity} ${product?.title} to cart!`);
   };
@@ -140,6 +148,13 @@ export default function ProductDetailPage() {
   };
 
   const toggleWishlist = () => {
+    // Check if user is authenticated
+    if (!user) {
+      toast.error('Please sign in to manage your wishlist');
+      router.push('/sign-in?redirect_url=' + encodeURIComponent(window.location.pathname));
+      return;
+    }
+    
     setIsWishlisted(!isWishlisted);
     toast.success(isWishlisted ? 'Removed from wishlist' : 'Added to wishlist');
   };
@@ -220,7 +235,7 @@ export default function ProductDetailPage() {
           <div className="space-y-4">
             <div className="aspect-square relative bg-white rounded-lg overflow-hidden shadow-lg">
               <Image
-                src={product?.imageUrl || mockImages[selectedImage]}
+                src={(product?.images && product.images.length > 0) ? product.images[selectedImage] : mockImages[selectedImage]}
                 alt={product?.title || "image"}
                 fill
                 className="object-cover"
@@ -237,7 +252,7 @@ export default function ProductDetailPage() {
             
             {/* Thumbnail Images */}
             <div className="grid grid-cols-4 gap-2">
-              {mockImages.map((image, index) => (
+              {((product?.images && product.images.length > 0) ? product.images : mockImages).map((image, index) => (
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
@@ -280,7 +295,7 @@ export default function ProductDetailPage() {
               </div>
               
               <div className="flex items-baseline gap-2 mb-6">
-                <span className="text-4xl font-bold text-green-600">${product?.price}</span>
+                <span className="text-4xl font-bold text-green-600">{formatCurrency(product?.price || 0)}</span>
                 <span className="text-sm text-gray-500">Free shipping</span>
               </div>
             </div>
@@ -320,7 +335,7 @@ export default function ProductDetailPage() {
                   </Button>
                 </div>
                 <span className="text-sm text-gray-500">
-                  {product?.inventory} available
+                  {Math.max(0, (product?.inventory || 0) - quantity + 1)} left in stock
                 </span>
               </div>
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import Image from 'next/image';
 import { 
   Search, 
@@ -17,15 +18,19 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { toast } from 'sonner';
+import { formatCurrency } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { useCartStore } from '@/lib/store';
 import EnhancedSearch from '@/app/_components/EnhancedSearch';
-import { toast } from 'sonner';
 
 interface Product {
   id: string;
@@ -64,6 +69,7 @@ const categories = [
 
 function SearchResultsContent() {
   const router = useRouter();
+  const { user } = useUser();
   const searchParams = useSearchParams();
   const { addToCart } = useCartStore();
   
@@ -144,6 +150,13 @@ function SearchResultsContent() {
   };
 
   const handleAddToCart = (product: Product) => {
+    // Check if user is authenticated
+    if (!user) {
+      toast.error('Please sign in to add items to cart');
+      router.push('/sign-in?redirect_url=' + encodeURIComponent(window.location.pathname + window.location.search));
+      return;
+    }
+    
     addToCart({
       id: product.id,
       title: product.title,
@@ -156,6 +169,13 @@ function SearchResultsContent() {
   };
 
   const toggleWishlist = (productId: string) => {
+    // Check if user is authenticated
+    if (!user) {
+      toast.error('Please sign in to manage your wishlist');
+      router.push('/sign-in?redirect_url=' + encodeURIComponent(window.location.pathname + window.location.search));
+      return;
+    }
+    
     const newWishlist = new Set(wishlist);
     if (wishlist.has(productId)) {
       newWishlist.delete(productId);
@@ -239,7 +259,7 @@ function SearchResultsContent() {
           
           <div className="flex items-center justify-between mb-3">
             <span className="text-xl font-bold text-green-600">
-              ${product.price.toFixed(2)}
+              {formatCurrency(product.price)}
             </span>
             <span className="text-sm text-gray-500">
               {product.inventory} in stock
@@ -310,7 +330,7 @@ function SearchResultsContent() {
               
               <div className="text-right">
                 <div className="text-2xl font-bold text-green-600 mb-1">
-                  ${product.price.toFixed(2)}
+                  {formatCurrency(product.price)}
                 </div>
                 <div className="text-sm text-gray-500">
                   {product.inventory} in stock
@@ -486,8 +506,8 @@ function SearchResultsContent() {
                     className="mb-2"
                   />
                   <div className="flex justify-between text-sm text-gray-600">
-                    <span>${filters.priceRange[0]}</span>
-                    <span>${filters.priceRange[1]}</span>
+                    <span>₹{filters.priceRange[0]}</span>
+                    <span>₹{filters.priceRange[1]}</span>
                   </div>
                 </div>
 

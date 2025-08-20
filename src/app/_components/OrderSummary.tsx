@@ -9,8 +9,10 @@ interface OrderItem {
   quantity: number;
   price: number;
   product: {
-    name: string;
-    image: string;
+    title?: string;
+    name?: string;
+    images?: string[];
+    image?: string;
     brand?: string;
   };
 }
@@ -46,13 +48,13 @@ export default function OrderSummary({
             <div key={item.id} className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg bg-muted flex-shrink-0">
                 <img
-                  src={item.product.image || '/placeholder.jpg'}
-                  alt={item.product.name}
+                  src={(item.product.images && item.product.images[0]) || item.product.image || '/placeholder.jpg'}
+                  alt={item.product.title || item.product.name || 'Product'}
                   className="w-full h-full object-cover rounded-lg"
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-medium truncate">{item.product.name}</h4>
+                <h4 className="font-medium truncate">{item.product.title || item.product.name}</h4>
                 {item.product.brand && (
                   <p className="text-sm text-muted-foreground">{item.product.brand}</p>
                 )}

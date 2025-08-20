@@ -19,12 +19,13 @@ import {
   Plus,
   ShoppingCart
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { formatCurrency } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
 interface Order {
@@ -268,7 +269,7 @@ export default function UserDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Spent</p>
-                    <p className="text-2xl font-bold">${userStats.totalSpent.toFixed(2)}</p>
+                    <p className="text-2xl font-bold">{formatCurrency(userStats.totalSpent)}</p>
                   </div>
                   <TrendingUp className="h-8 w-8 text-green-600" />
                 </div>
@@ -337,7 +338,7 @@ export default function UserDashboard() {
                           <Badge className={getStatusColor(order.status)}>
                             {order.status}
                           </Badge>
-                          <p className="text-sm font-medium mt-1">${order.total}</p>
+                          <p className="text-sm font-medium mt-1">{formatCurrency(order.total)}</p>
                         </div>
                       </div>
                     ))}
@@ -367,7 +368,7 @@ export default function UserDashboard() {
                         />
                         <div className="flex-1">
                           <p className="font-medium">{item.name}</p>
-                          <p className="text-sm text-gray-600">${item.price}</p>
+                          <p className="text-sm text-gray-600">{formatCurrency(item.price)}</p>
                         </div>
                         <Badge variant={item.inStock ? "default" : "secondary"}>
                           {item.inStock ? "In Stock" : "Out of Stock"}
@@ -403,7 +404,7 @@ export default function UserDashboard() {
                           <Badge className={getStatusColor(order.status)}>
                             {order.status}
                           </Badge>
-                          <p className="text-lg font-semibold mt-2">${order.total}</p>
+                          <p className="text-lg font-semibold mt-2">{formatCurrency(order.total)}</p>
                         </div>
                       </div>
                       
@@ -420,12 +421,12 @@ export default function UserDashboard() {
                             <div className="flex-1">
                               <h4 className="font-medium">{item.name}</h4>
                               <p className="text-gray-600">
-                                Quantity: {item.quantity} × ${item.price}
+                                Quantity: {item.quantity} × {formatCurrency(item.price)}
                               </p>
                             </div>
                             <div className="text-right">
                               <p className="font-medium">
-                                ${(item.price * item.quantity).toFixed(2)}
+                                {formatCurrency(item.price * item.quantity)}
                               </p>
                             </div>
                           </div>
@@ -472,7 +473,7 @@ export default function UserDashboard() {
                         <p className="text-sm text-gray-600 mb-2">{item.category}</p>
                         <div className="flex justify-between items-center mb-3">
                           <span className="text-lg font-bold text-green-600">
-                            ${item.price}
+                            {formatCurrency(item.price)}
                           </span>
                           <Badge variant={item.inStock ? "default" : "secondary"}>
                             {item.inStock ? "In Stock" : "Out of Stock"}

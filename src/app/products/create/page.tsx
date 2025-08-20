@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { 
@@ -11,7 +11,7 @@ import {
   Save, 
   ArrowLeft,
   Image as ImageIcon,
-  DollarSign,
+  IndianRupee,
   Tag,
   Layers
 } from 'lucide-react';
@@ -24,6 +24,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { formatPrice } from '@/lib/utils';
 
 interface ProductFormData {
   title: string; // ✅ Changed from 'name' to 'title' to match API
@@ -61,6 +62,9 @@ export default function CreateProductPage() {
   const [specKey, setSpecKey] = useState('');
   const [specValue, setSpecValue] = useState('');
   const [imagePreview, setImagePreview] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
+  const [isCreatingNewCategory, setIsCreatingNewCategory] = useState(false);
+  const [availableCategories, setAvailableCategories] = useState(categories);
   
   const [formData, setFormData] = useState<ProductFormData>({
     title: '', // ✅ Changed from 'name' to 'title'
@@ -98,6 +102,26 @@ export default function CreateProductPage() {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
+
+  // Load categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data.length > 0) {
+            const categoryNames = data.data.map((cat: any) => cat.name);
+            setAvailableCategories([...new Set([...categories, ...categoryNames])]);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const addTag = () => {
     if (currentTag.trim() && !formData.tags.includes(currentTag.trim())) {
@@ -273,9 +297,9 @@ export default function CreateProductPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="price">Price ($) *</Label>
+                      <Label htmlFor="price">Price (₹) *</Label>
                       <div className="relative">
-                        <DollarSign className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <IndianRupee className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
                           id="price"
                           type="number"
@@ -294,18 +318,75 @@ export default function CreateProductPage() {
 
                     <div>
                       <Label htmlFor="category">Category *</Label>
-                      <Select value={formData.category} onValueChange={(value) => handleInputChange('category', value)}>
-                        <SelectTrigger className={errors.category ? 'border-red-500' : ''}>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {!isCreatingNewCategory ? (
+                        <div className="space-y-2">
+                          <Select value={formData.category} onValueChange={(value) => {
+                            if (value === 'CREATE_NEW') {
+                              setIsCreatingNewCategory(true);
+                              setFormData(prev => ({ ...prev, category: '' }));
+                            } else {
+                              handleInputChange('category', value);
+                            }
+                          }}>
+                            <SelectTrigger className={errors.category ? 'border-red-500' : ''}>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableCategories.map((category) => (
+                                <SelectItem key={category} value={category}>
+                                  {category}
+                                </SelectItem>
+                              ))}
+                              <SelectItem value="CREATE_NEW">
+                                <span className="flex items-center">
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Create New Category
+                                </span>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Enter new category name"
+                              value={customCategory}
+                              onChange={(e) => setCustomCategory(e.target.value)}
+                              className={errors.category ? 'border-red-500' : ''}
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                if (customCategory.trim()) {
+                                  const newCategory = customCategory.trim();
+                                  handleInputChange('category', newCategory);
+                                  setAvailableCategories(prev => 
+                                    prev.includes(newCategory) 
+                                      ? prev 
+                                      : [...prev, newCategory]
+                                  );
+                                  setIsCreatingNewCategory(false);
+                                  setCustomCategory('');
+                                }
+                              }}
+                              disabled={!customCategory.trim()}
+                            >
+                              Add
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setIsCreatingNewCategory(false);
+                                setCustomCategory('');
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       {errors.category && (
                         <p className="text-sm text-red-500 mt-1">{errors.category}</p>
                       )}
@@ -556,7 +637,7 @@ export default function CreateProductPage() {
                     <h3 className="font-semibold mb-1">{formData.title || 'Product Title'}</h3>
                     <p className="text-sm text-gray-600 mb-2">{formData.category || 'Category'}</p>
                     <p className="text-lg font-bold text-green-600">
-                      ${formData.price ? formData.price.toFixed(2) : '0.00'}
+                      {formatPrice(formData.price || 0)}
                     </p>
                     <div className="flex flex-wrap gap-1 mt-2">
                       {formData.tags.slice(0, 3).map((tag) => (

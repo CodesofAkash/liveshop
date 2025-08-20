@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { formatCurrency } from '@/lib/utils';
 
 interface SearchSuggestion {
   id: string;
@@ -256,7 +257,7 @@ export default function EnhancedSearch({
                           {product.category}
                         </Badge>
                         <span className="text-sm font-bold text-green-600">
-                          ${product.price}
+                          {formatCurrency(product.price)}
                         </span>
                       </div>
                     </div>

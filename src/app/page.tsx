@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useUser } from '@clerk/nextjs'
 import { useProductsStore, useLiveStore, useUIStore, useCartStore } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,7 +19,8 @@ import {
   Users,
   Clock,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Plus
 } from 'lucide-react'
 import { useRouter } from 'next/navigation' // Fixed: Changed from 'next/router' to 'next/navigation'
 
@@ -109,65 +111,7 @@ const fetchCategories = async () => {
   }
 }
 
-// Mock data fallbacks
-const mockProducts = [
-  {
-    id: 'mock-1',
-    title: 'iPhone 15 Pro', // Changed from 'name' to 'title' to match API
-    description: 'Latest iPhone with titanium build and advanced camera system',
-    price: 134900,
-    images: ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300&h=300&fit=crop'],
-    category: 'Electronics',
-    sellerId: 'seller-1',
-    inventory: 25,
-    rating: 4.8,
-    reviewCount: 1247,
-    seller: { id: 'seller-1', name: 'Apple Store', email: 'store@apple.com' },
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'mock-2',
-    title: 'Nike Air Jordan 1', // Changed from 'name' to 'title'
-    description: 'Classic basketball shoes with iconic design',
-    price: 12995,
-    images: ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=300&fit=crop'],
-    category: 'Fashion',
-    sellerId: 'seller-2',
-    inventory: 50,
-    rating: 4.6,
-    reviewCount: 892,
-    seller: { id: 'seller-2', name: 'Nike Official', email: 'store@nike.com' },
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'mock-3',
-    title: 'MacBook Pro 16"', // Changed from 'name' to 'title'
-    description: 'Professional laptop with M3 Pro chip',
-    price: 249900,
-    images: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=300&h=300&fit=crop'],
-    category: 'Electronics',
-    sellerId: 'seller-1',
-    inventory: 15,
-    rating: 4.9,
-    reviewCount: 654,
-    seller: { id: 'seller-1', name: 'Apple Store', email: 'store@apple.com' },
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'mock-4',
-    title: 'Wireless Earbuds', // Changed from 'name' to 'title'
-    description: 'Premium sound quality with noise cancellation',
-    price: 8999,
-    images: ['https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=300&h=300&fit=crop'],
-    category: 'Electronics',
-    sellerId: 'seller-3',
-    inventory: 100,
-    rating: 4.4,
-    reviewCount: 423,
-    seller: { id: 'seller-3', name: 'Audio Tech', email: 'store@audiotech.com' },
-    createdAt: new Date().toISOString(),
-  }
-]
+// Removed mock data - will show empty state when no products found
 
 // Fixed Types for API responses
 interface ApiProduct {
@@ -195,13 +139,30 @@ interface Category {
 }
 
 // Product Card Component
-const ProductCard = ({ product, onClick }: { product: ApiProduct; onClick?: () => void }) => {
+const ProductCard = ({ product, onClick, user, router }: { 
+  product: ApiProduct; 
+  onClick?: () => void;
+  user: any;
+  router: any;
+}) => {
   const { addItem } = useCartStore()
   const addNotification = useUIStore((state) => state.addNotification)
   const [isAdding, setIsAdding] = useState(false)
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent triggering onClick when adding to cart
+    
+    // Check if user is authenticated
+    if (!user) {
+      addNotification({
+        type: 'error',
+        title: 'Authentication Required',
+        message: 'Please sign in to add items to cart',
+      })
+      router.push('/sign-in?redirect_url=' + encodeURIComponent(window.location.pathname))
+      return
+    }
+    
     setIsAdding(true)
     try {
       const storeProduct = {
@@ -547,6 +508,36 @@ export default function HomePage() {
   
   const addNotification = useUIStore((state) => state.addNotification)
   const router = useRouter()
+  const { user } = useUser()
+  
+  // Add error boundary for debugging
+  const [renderError, setRenderError] = useState<string | null>(null)
+  
+  // Catch any rendering errors
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('Page render error:', error)
+      setRenderError(error.message)
+    }
+    
+    window.addEventListener('error', handleError)
+    return () => window.removeEventListener('error', handleError)
+  }, [])
+  
+  // If there's a render error, show it
+  if (renderError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Render Error</h1>
+          <p className="text-gray-600">{renderError}</p>
+          <Button onClick={() => setRenderError(null)} className="mt-4">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
   
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -617,40 +608,13 @@ const loadProducts = useCallback(async (page = 1) => {
         })
       }
     } else {
-      // Filter mock data based on current filters
-      let filteredMockProducts = [...mockProducts]
-      
-      if (searchQuery) {
-        filteredMockProducts = filteredMockProducts.filter(product =>
-          product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          product.description.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      }
-      
-      if (selectedCategory) {
-        filteredMockProducts = filteredMockProducts.filter(product =>
-          product.category === selectedCategory
-        )
-      }
-      
-      if (priceRange[0] > 0) {
-        filteredMockProducts = filteredMockProducts.filter(product =>
-          product.price >= priceRange[0]
-        )
-      }
-      
-      if (priceRange[1] < 999999) {
-        filteredMockProducts = filteredMockProducts.filter(product =>
-          product.price <= priceRange[1]
-        )
-      }
-
-      setProducts(filteredMockProducts)
-      setUsingMockData(true)
+      // No products found - show empty state
+      setProducts([])
+      setUsingMockData(false)
       setPagination({
         currentPage: 1,
         totalPages: 1,
-        totalCount: filteredMockProducts.length,
+        totalCount: 0,
         hasNextPage: false,
         hasPrevPage: false,
         limit: 12
@@ -659,28 +623,28 @@ const loadProducts = useCallback(async (page = 1) => {
       if (page === 1) {
         addNotification({
           type: 'info',
-          title: 'Demo Mode',
-          message: `Showing ${filteredMockProducts.length} demo products`,
+          title: 'No Products Found',
+          message: searchQuery || selectedCategory ? 'Try adjusting your filters or search terms' : 'No products available yet',
         })
       }
     }
-  } catch {
-    // Use mock data on error
-    setProducts(mockProducts)
-    setUsingMockData(true)
+  } catch (error) {
+    // Show empty state on error
+    setProducts([])
+    setUsingMockData(false)
     setPagination({
       currentPage: 1,
       totalPages: 1,
-      totalCount: mockProducts.length,
+      totalCount: 0,
       hasNextPage: false,
       hasPrevPage: false,
       limit: 12
     })
     
     addNotification({
-      type: 'warning',
-      title: 'Using Demo Data',
-      message: 'Could not connect to database. Showing demo products.',
+      type: 'error',
+      title: 'Error Loading Products',
+      message: 'Failed to load products. Please try again later.',
     })
   } finally {
     setLoading(false)
@@ -710,22 +674,6 @@ const loadProducts = useCallback(async (page = 1) => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">        
-        {/* Demo mode indicator */}
-        {usingMockData && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-lg">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <AlertCircle className="h-5 w-5 text-yellow-400" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700">
-                  <strong>Demo Mode:</strong> Showing sample products. Connect your database to see real data.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Hero Section */}
         <HeroSection />
 
@@ -809,6 +757,8 @@ const loadProducts = useCallback(async (page = 1) => {
                     key={product.id} 
                     product={product} 
                     onClick={() => router.push(`/products/${product.id}`)}
+                    user={user}
+                    router={router}
                   />
                 ))}
               </div>
@@ -853,18 +803,35 @@ const loadProducts = useCallback(async (page = 1) => {
             </>
           ) : (
             <div className="text-center py-16">
-              <div className="text-6xl mb-4">🔍</div>
+              <div className="text-6xl mb-4">�</div>
               <h3 className="text-xl font-semibold mb-2">No products found</h3>
-              <p className="text-gray-600 mb-4">
-                Try adjusting your search or filter criteria
+              <p className="text-gray-600 mb-6">
+                {searchQuery || selectedCategory 
+                  ? 'Try adjusting your search or filter criteria' 
+                  : 'No products are available yet. Be the first to add one!'
+                }
               </p>
-              <Button onClick={() => {
-                useProductsStore.getState().setSearchQuery('')
-                useProductsStore.getState().setSelectedCategory('')
-                useProductsStore.getState().setPriceRange([0, 999999])
-              }}>
-                Clear Filters
-              </Button>
+              <div className="flex justify-center gap-4">
+                {(searchQuery || selectedCategory) && (
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      useProductsStore.getState().setSearchQuery('')
+                      useProductsStore.getState().setSelectedCategory('')
+                      useProductsStore.getState().setPriceRange([0, 999999])
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+                <Button 
+                  onClick={() => router.push('/products/create')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Product
+                </Button>
+              </div>
             </div>
           )}
         </section>

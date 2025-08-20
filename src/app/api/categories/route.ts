@@ -5,15 +5,30 @@ import { prisma } from '@/lib/prisma'
 // GET /api/categories - Get all categories with product counts
 export async function GET() {
   try {
-    const categories = await prisma.product.groupBy({
-      by: ['category'],
-      _count: true,
+    // Get all active products with their categories
+    const products = await prisma.product.findMany({
+      where: {
+        status: 'ACTIVE'
+      },
+      select: {
+        category: true
+      }
     })
 
-    const formattedCategories = categories
-      .map((cat) => ({
-        name: cat.category,
-        count: cat._count || 0,
+    // Group categories manually and filter out null/empty categories
+    const categoryMap = new Map<string, number>()
+    
+    products.forEach((product: { category: string | null }) => {
+      if (product.category && product.category.trim() !== '') {
+        const count = categoryMap.get(product.category) || 0
+        categoryMap.set(product.category, count + 1)
+      }
+    })
+
+    const formattedCategories = Array.from(categoryMap.entries())
+      .map(([name, count]) => ({
+        name,
+        count,
       }))
       .sort((a, b) => b.count - a.count) // Sort by count descending
 

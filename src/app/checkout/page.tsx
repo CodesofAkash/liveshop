@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,7 @@ interface ShippingAddress {
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { user } = useUser();
   const { items, total, discount, clearCart } = useCartStore();
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
@@ -60,11 +62,18 @@ export default function CheckoutPage() {
   const finalTotal = subtotal - discountAmount + shippingFee + tax;
 
   useEffect(() => {
+    // Check authentication first
+    if (!user) {
+      toast.error('Please sign in to checkout');
+      router.push('/sign-in?redirect_url=/checkout');
+      return;
+    }
+    
     if (items.length === 0) {
       toast.error('Your cart is empty');
       router.push('/cart');
     }
-  }, [items, router]);
+  }, [items, router, user]);
 
   const handleInputChange = (field: keyof ShippingAddress, value: string) => {
     setShippingAddress(prev => ({ ...prev, [field]: value }));

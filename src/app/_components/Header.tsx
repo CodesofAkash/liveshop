@@ -51,6 +51,7 @@ import {
   BarChart3,
   Users
 } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 import EnhancedSearch from './EnhancedSearch'
 
 // Cart Sidebar Component
@@ -101,13 +102,13 @@ const CartSidebar = () => {
                   {items.map((item) => (
                     <div key={item.id} className="flex items-center space-x-4 bg-gray-50 p-3 rounded-lg">
                       <img
-                        src={item.product.images[0]}
+                        src={item.product.images?.[0]}
                         alt={item.product.name}
                         className="w-16 h-16 object-cover rounded-md"
                       />
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium truncate">{item.product.name}</h4>
-                        <p className="text-sm text-gray-500">₹{item.price.toLocaleString()}</p>
+                        <p className="text-sm text-gray-500">{formatCurrency(item.price)}</p>
                         <div className="flex items-center space-x-2 mt-2">
                           <Button
                             size="sm"
@@ -143,7 +144,7 @@ const CartSidebar = () => {
               <div className="border-t pt-4 space-y-4">
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Total:</span>
-                  <span>₹{cartTotal.toLocaleString()}</span>
+                  <span>{formatCurrency(cartTotal)}</span>
                 </div>
                 <Button onClick={() => {router.push('/cart');setCartOpen(false);}} className="w-full" size="lg">
                   Go to Cart Page
