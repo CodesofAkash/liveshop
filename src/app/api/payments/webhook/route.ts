@@ -53,7 +53,7 @@ async function handlePaymentCaptured(payment: any) {
       where: { id: orderId },
       data: {
         status: 'CONFIRMED',
-        paymentStatus: 'PAID',
+        paymentStatus: 'COMPLETED',
         paymentId: payment.id,
       }
     });
@@ -81,7 +81,7 @@ async function handleOrderPaid(order: any) {
       where: { id: orderId },
       data: {
         status: 'CONFIRMED',
-        paymentStatus: 'PAID',
+        paymentStatus: 'COMPLETED',
       }
     });
   }
