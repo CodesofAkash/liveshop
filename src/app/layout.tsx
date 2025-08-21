@@ -4,6 +4,7 @@ import './globals.css'
 import { ClerkProvider } from '@clerk/nextjs'
 import { Toaster } from 'react-hot-toast'
 import Header from './_components/Header'
+import { CartSync } from '@/components/CartSync'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -45,6 +46,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <body className={inter.className}>
+          <CartSync />
           <Header />
           {children}
           <Toaster 

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
+import { useUser, SignInButton } from '@clerk/nextjs';
 import Image from 'next/image';
 import { 
   ShoppingCart, 
@@ -15,14 +15,15 @@ import {
   Shield,
   CreditCard,
   Heart,
-  RotateCcw
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useCartStore } from '@/lib/store';
+import { useDbCartStore } from '@/lib/cart-store';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 
@@ -35,17 +36,29 @@ interface PromoCode {
 
 const Page = () => {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const { 
     items, 
+    loading,
+    error,
+    subtotal,
+    total,
+    itemCount,
+    fetchCart,
     updateQuantity, 
     removeItem, 
-    clearCart, 
-    getCartSubtotal
-  } = useCartStore();
+    clearCart 
+  } = useDbCartStore();
 
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
+
+  // Fetch cart when user is loaded and authenticated
+  useEffect(() => {
+    if (isLoaded && user) {
+      fetchCart();
+    }
+  }, [isLoaded, user, fetchCart]);
 
   // Sample promo codes for demonstration
   const availablePromoCodes: PromoCode[] = [
@@ -70,7 +83,6 @@ const Page = () => {
   ];
 
   // Calculate cart totals
-  const subtotal = getCartSubtotal();
   const shipping = subtotal > 50 ? 0 : 5.99;
   const tax = subtotal * 0.08; // 8% tax
   
@@ -83,7 +95,73 @@ const Page = () => {
     }
   }
   
-  const total = subtotal + shipping + tax - discount;
+  const finalTotal = subtotal + shipping + tax - discount;
+
+  // Handle quantity update
+  const handleQuantityUpdate = async (itemId: string, newQuantity: number) => {
+    try {
+      await updateQuantity(itemId, newQuantity);
+      toast.success('Cart updated successfully');
+    } catch (error) {
+      toast.error('Failed to update cart');
+    }
+  };
+
+  // Handle item removal
+  const handleRemoveItem = async (itemId: string) => {
+    try {
+      await removeItem(itemId);
+      toast.success('Item removed from cart');
+    } catch (error) {
+      toast.error('Failed to remove item');
+    }
+  };
+
+  // Handle clear cart
+  const handleClearCart = async () => {
+    try {
+      await clearCart();
+      toast.success('Cart cleared successfully');
+    } catch (error) {
+      toast.error('Failed to clear cart');
+    }
+  };
+
+  // Show loading state
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // Show sign-in prompt for unauthenticated users
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 px-4 py-16">
+        <div className="max-w-md mx-auto text-center">
+          <ShoppingCart className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Your Cart</h1>
+          <p className="text-gray-600 mb-6">
+            Please sign in to view your cart and continue shopping.
+          </p>
+          <SignInButton mode="modal">
+            <Button size="lg" className="w-full">
+              Sign In to View Cart
+            </Button>
+          </SignInButton>
+          <Button 
+            variant="outline" 
+            onClick={() => router.push('/')}
+            className="w-full mt-4"
+          >
+            Continue Shopping
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const applyPromoCode = () => {
     const promo = availablePromoCodes.find(p => p.code.toLowerCase() === promoCode.toLowerCase());
@@ -113,29 +191,18 @@ const Page = () => {
       return;
     }
 
-    // Apply any discount to the cart store if promo is applied
-    if (appliedPromo) {
-      let discountAmount = 0;
-      if (appliedPromo.type === 'percentage') {
-        const subtotal = items.reduce((total, item) => total + (item.price * item.quantity), 0);
-        discountAmount = subtotal * (appliedPromo.discount / 100);
-      } else {
-        discountAmount = appliedPromo.discount;
-      }
-      
-      // Apply discount to cart store
-      const { applyDiscount } = useCartStore.getState();
-      applyDiscount(appliedPromo.code, discountAmount);
-    }
-
     // Redirect to checkout page
     router.push('/checkout');
   };
 
-  const saveForLater = (itemId: string, itemName: string) => {
-    // In a real app, you'd save to wishlist via API
-    removeItem(itemId);
-    toast.success(`${itemName} moved to wishlist`);
+  const saveForLater = async (itemId: string, itemName: string) => {
+    try {
+      // In a real app, you'd save to wishlist via API
+      await removeItem(itemId);
+      toast.success(`${itemName} moved to wishlist`);
+    } catch {
+      toast.error('Failed to move item to wishlist');
+    }
   };
 
   if (items.length === 0) {
@@ -214,7 +281,7 @@ const Page = () => {
                             Category: {item.product.category}
                           </p>
                           <div className="flex items-center mt-2">
-                            {item.inStock ? (
+                            {item.product.inStock ? (
                               <Badge variant="secondary" className="text-green-600 bg-green-50">
                                 <Shield className="h-3 w-3 mr-1" />
                                 In Stock
@@ -239,8 +306,8 @@ const Page = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                            disabled={item.quantity <= 1}
+                            onClick={() => handleQuantityUpdate(item.id, item.quantity - 1)}
+                            disabled={item.quantity <= 1 || loading}
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
@@ -248,8 +315,8 @@ const Page = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                            disabled={!item.inStock}
+                            onClick={() => handleQuantityUpdate(item.id, item.quantity + 1)}
+                            disabled={item.product.inventory <= item.quantity || loading}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
@@ -260,7 +327,8 @@ const Page = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => saveForLater(item.productId, item.product.title || item.product.name || 'Item')}
+                            onClick={() => saveForLater(item.id, item.product.title || 'Item')}
+                            disabled={loading}
                           >
                             <Heart className="h-4 w-4 mr-1" />
                             Save
@@ -268,8 +336,9 @@ const Page = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => removeItem(item.productId)}
+                            onClick={() => handleRemoveItem(item.id)}
                             className="text-red-600 hover:text-red-700"
+                            disabled={loading}
                           >
                             <Trash2 className="h-4 w-4 mr-1" />
                             Remove
@@ -389,7 +458,7 @@ const Page = () => {
                   
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span>{formatCurrency(total)}</span>
+                    <span>{formatCurrency(finalTotal)}</span>
                   </div>
                 </div>
 
@@ -397,14 +466,14 @@ const Page = () => {
                 <div className="space-y-3 pt-4">
                   <Button
                     onClick={handleCheckout}
-                    disabled={items.some(item => !item.inStock)}
+                    disabled={items.some(item => !item.product.inStock) || loading}
                     className="w-full py-3 text-lg"
                   >
                     <CreditCard className="h-5 w-5 mr-2" />
                     Proceed to Checkout
                   </Button>
                   
-                  {items.some(item => !item.inStock) && (
+                  {items.some(item => !item.product.inStock) && (
                     <p className="text-sm text-red-600 text-center">
                       Some items are out of stock
                     </p>

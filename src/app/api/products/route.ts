@@ -303,17 +303,6 @@ export async function GET(request: NextRequest) {
       // Default to active products only
       where.status = 'ACTIVE'
     }
-
-    // Debug: Log the where clause to see what we're filtering
-    console.log('Products API query where clause:', JSON.stringify(where, null, 2))
-    
-    // Check total products in database first
-    const allProductsCount = await prisma.product.count()
-    console.log('Total products in database:', allProductsCount)
-    
-    // Check active products count
-    const activeProductsCount = await prisma.product.count({ where: { status: 'ACTIVE' } })
-    console.log('Active products count:', activeProductsCount)
     
     // Execute query with pagination
     const [products, total] = await Promise.all([
@@ -335,8 +324,6 @@ export async function GET(request: NextRequest) {
       prisma.product.count({ where })
     ])
     
-    console.log('Query returned', products.length, 'products out of', total, 'total matching')
-
     const totalPages = Math.ceil(total / limit)
 
     return NextResponse.json({

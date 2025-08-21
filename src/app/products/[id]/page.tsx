@@ -9,8 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useCartStore } from '@/lib/store';
-import { useUser } from '@clerk/nextjs';
+import { useDbCartStore } from '@/lib/cart-store';
+import { useUser, SignInButton } from '@clerk/nextjs';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 
@@ -19,7 +19,8 @@ interface Product {
   title: string;
   description: string;
   price: number;
-  imageUrl: string;
+  imageUrl?: string;
+  images?: string[];
   category: string;
   inStock: boolean;
   inventory: number;
@@ -42,7 +43,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useUser();
-  const { addItem } = useCartStore();
+  const { addItem } = useDbCartStore();
   
   const [product, setProduct] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -86,6 +87,7 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     fetchProduct();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   const fetchProduct = async () => {
@@ -95,49 +97,66 @@ export default function ProductDetailPage() {
       
       if (response.ok) {
         const data = await response.json();
-        setProduct({
-          ...data.data,
-          rating: 4.5, // Mock rating
-          reviewCount: mockReviews.length,
-          features: [
-            'Premium build quality',
-            '30-day money back guarantee',
-            'Free shipping on orders over ₹2000',
-            '24/7 customer support'
-          ],
-          specifications: {
-            'Brand': 'LiveShop',
-            'Model': data.title,
-            'Weight': '1.2 lbs',
-            'Dimensions': '10 x 8 x 4 inches',
-            'Warranty': '1 Year',
-            'Material': 'Premium quality materials'
-          }
-        });
-        setReviews(mockReviews);
+        
+        if (data.success && data.data) {
+          setProduct({
+            ...data.data,
+            rating: data.data.rating || 4.5, // Use actual rating or fallback to mock
+            reviewCount: data.data.reviewCount || mockReviews.length,
+            features: [
+              'Premium build quality',
+              '30-day money back guarantee',
+              'Free shipping on orders over ₹2000',
+              '24/7 customer support'
+            ],
+            specifications: {
+              'Brand': 'LiveShop',
+              'Model': data.data.title,
+              'Weight': '1.2 lbs',
+              'Dimensions': '10 x 8 x 4 inches',
+              'Warranty': '1 Year',
+              'Material': 'Premium quality materials'
+            }
+          });
+          setReviews(data.data.reviews || mockReviews);
+        } else {
+          console.error('API returned success but no data:', data);
+          setError('Product data not available');
+        }
       } else {
-        setError('Product not found');
+        // Get more specific error information
+        const errorData = await response.json().catch(() => null);
+        console.error('API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
+        
+        if (response.status === 404) {
+          setError('Product not found');
+        } else if (response.status === 401) {
+          setError('Please sign in to view this product');
+        } else {
+          setError(errorData?.error || `Failed to load product (${response.status})`);
+        }
       }
     } catch (err) {
+      console.error('Fetch error:', err);
       setError('Failed to load product');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddToCart = () => {
-    if (!product) return;
+  const handleAddToCart = async () => {
+    if (!product || !user) return;
     
-    // Check if user is authenticated
-    if (!user) {
-      toast.error('Please sign in to add items to cart');
-      router.push('/sign-in?redirect_url=' + encodeURIComponent(window.location.pathname));
-      return;
+    try {
+      await addItem(product.id, quantity);
+      toast.success(`Added ${quantity} ${product?.title} to cart!`);
+    } catch (error) {
+      toast.error('Failed to add item to cart');
     }
-    
-    addItem(product, quantity);
-    
-    toast.success(`Added ${quantity} ${product?.title} to cart!`);
   };
 
   const handleQuantityChange = (change: number) => {
@@ -148,12 +167,7 @@ export default function ProductDetailPage() {
   };
 
   const toggleWishlist = () => {
-    // Check if user is authenticated
-    if (!user) {
-      toast.error('Please sign in to manage your wishlist');
-      router.push('/sign-in?redirect_url=' + encodeURIComponent(window.location.pathname));
-      return;
-    }
+    if (!user) return;
     
     setIsWishlisted(!isWishlisted);
     toast.success(isWishlisted ? 'Removed from wishlist' : 'Added to wishlist');
@@ -340,21 +354,48 @@ export default function ProductDetailPage() {
               </div>
 
               <div className="flex gap-4">
-                <Button
-                  onClick={handleAddToCart}
-                  disabled={!product?.inStock}
-                  className="flex-1 h-12"
-                >
-                  <ShoppingCart className="h-5 w-5 mr-2" />
-                  {product?.inStock ? 'Add to Cart' : 'Out of Stock'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={toggleWishlist}
-                  className="h-12 px-6"
-                >
-                  <Heart className={`h-5 w-5 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
-                </Button>
+                {user ? (
+                  <Button
+                    onClick={handleAddToCart}
+                    disabled={!product?.inStock}
+                    className="flex-1 h-12"
+                  >
+                    <ShoppingCart className="h-5 w-5 mr-2" />
+                    {product?.inStock ? 'Add to Cart' : 'Out of Stock'}
+                  </Button>
+                ) : (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <SignInButton mode="modal">
+                      <Button
+                        disabled={!product?.inStock}
+                        className="flex-1 h-12"
+                      >
+                        <ShoppingCart className="h-5 w-5 mr-2" />
+                        {product?.inStock ? 'Add to Cart' : 'Out of Stock'}
+                      </Button>
+                    </SignInButton>
+                  </div>
+                )}
+                {user ? (
+                  <Button
+                    variant="outline"
+                    onClick={toggleWishlist}
+                    className="h-12 px-6"
+                  >
+                    <Heart className={`h-5 w-5 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+                  </Button>
+                ) : (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <SignInButton mode="modal">
+                      <Button
+                        variant="outline"
+                        className="h-12 px-6"
+                      >
+                        <Heart className="h-5 w-5" />
+                      </Button>
+                    </SignInButton>
+                  </div>
+                )}
                 <Button variant="outline" className="h-12 px-6">
                   <Share2 className="h-5 w-5" />
                 </Button>

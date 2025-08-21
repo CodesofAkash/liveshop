@@ -27,6 +27,7 @@ model User {
   liveSessions LiveSession[]
   reviews   Review[]
   wishlist  Wishlist[]
+  cart      Cart?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -61,6 +62,7 @@ model Product {
   orderItems  OrderItem[]
   reviews     Review[]
   wishlistItems Wishlist[]
+  cartItems   CartItem[]
   
   // Product Status & Availability
   status      ProductStatus @default(ACTIVE)
@@ -316,4 +318,37 @@ enum PaymentStatus {
 enum DiscountType {
   PERCENTAGE
   FIXED_AMOUNT
+}
+
+// Cart model - User's shopping cart
+model Cart {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  items     CartItem[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("carts")
+}
+
+// Cart Item model - Individual items in cart
+model CartItem {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  cartId    String   @db.ObjectId
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  
+  productId String   @db.ObjectId
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  quantity  Int      @default(1)
+  price     Float    // Store price at time of adding to cart
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([cartId, productId]) // Prevent duplicate products in same cart
+  @@map("cart_items")
 }

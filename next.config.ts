@@ -21,6 +21,15 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "img-src 'self' data: https: http:; object-src 'none';",
+          },
+        ],
+      },
     ];
   },
   // Add this for ngrok CORS issues
@@ -28,7 +37,13 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
+        hostname: '**',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '**',
         port: '',
         pathname: '/**',
       },

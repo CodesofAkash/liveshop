@@ -22,8 +22,6 @@ export async function GET(
       )
     }
     
-    console.log('Product sellerId:', productBasic.sellerId)
-    
     // Try to get seller separately with better error handling
     let seller = null
     try {
@@ -96,6 +94,7 @@ export async function GET(
       reviewCount: product.reviews.length,
     }
 
+    console.log('API: Successfully returning product data');
     return NextResponse.json({
       success: true,
       data: productWithRating,

@@ -104,7 +104,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
   filteredProducts: [],
   searchQuery: '',
   selectedCategory: '',
-  priceRange: [0, 10000],
+  priceRange: [0, 999999], // ✅ Fixed: Increased max price to accommodate high-value products
   loading: false,
   error: null,
 

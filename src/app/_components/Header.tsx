@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useUser, SignInButton, SignUpButton, SignOutButton, UserButton } from '@clerk/nextjs'
-import { useCartStore, useUserStore, useUIStore, useLiveStore } from '@/lib/store'
+import { useUserStore, useUIStore, useLiveStore } from '@/lib/store'
+import { useDbCartStore } from '@/lib/cart-store'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -56,7 +57,7 @@ import EnhancedSearch from './EnhancedSearch'
 
 // Cart Sidebar Component
 const CartSidebar = () => {
-  const { items, total, itemCount, isOpen, setCartOpen, removeItem, updateQuantity, clearCart } = useCartStore()
+  const { items, isOpen, setCartOpen, removeItem, updateQuantity, clearCart } = useDbCartStore()
 
   const handleCheckout = () => {
     // This will redirect to checkout page
@@ -65,8 +66,9 @@ const CartSidebar = () => {
 
   const router = useRouter();
 
-  // Calculate total safely
-  const cartTotal = total || items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Calculate total and count from items
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   return (
     <Sheet open={isOpen} onOpenChange={setCartOpen}>
@@ -103,11 +105,11 @@ const CartSidebar = () => {
                     <div key={item.id} className="flex items-center space-x-4 bg-gray-50 p-3 rounded-lg">
                       <img
                         src={item.product.images?.[0]}
-                        alt={item.product.name}
+                        alt={item.product.title}
                         className="w-16 h-16 object-cover rounded-md"
                       />
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium truncate">{item.product.name}</h4>
+                        <h4 className="font-medium truncate">{item.product.title}</h4>
                         <p className="text-sm text-gray-500">{formatCurrency(item.price)}</p>
                         <div className="flex items-center space-x-2 mt-2">
                           <Button
@@ -404,9 +406,12 @@ const SearchBar = () => {
 
 // Main Header Component
 export default function Header() {
-  const { itemCount, toggleCart } = useCartStore()
+  const { items, toggleCart } = useDbCartStore()
   const { activeSessions } = useLiveStore()
   const [isScrolled, setIsScrolled] = useState(false)
+
+  // Calculate item count from items
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
 
   // Handle scroll effect
   useEffect(() => {

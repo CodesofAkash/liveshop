@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
+import { useUser, SignInButton } from '@clerk/nextjs';
 import { 
   Package, 
   Upload, 
@@ -31,7 +31,7 @@ interface ProductFormData {
   description: string;
   price: number;
   category: string;
-  imageUrl: string;
+  images: string[]; // ✅ Changed from imageUrl to images array
   inStock: boolean;
   inventory: number;
   tags: string[];
@@ -54,14 +54,56 @@ const categories = [
 
 export default function CreateProductPage() {
   const router = useRouter();
-  const { user } = useUser();
+  const { user, isSignedIn, isLoaded } = useUser();
+  
+  // Show loading while checking authentication
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to sign in if not authenticated
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold mb-4">Sign In Required</h2>
+          <p className="text-gray-600 mb-6">
+            You need to be signed in to create products. Please sign in to continue.
+          </p>
+          <div className="space-y-3">
+            <SignInButton mode="modal">
+              <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                Sign In
+              </Button>
+            </SignInButton>
+            <Button 
+              variant="outline" 
+              onClick={() => router.push('/')}
+              className="w-full"
+            >
+              Go Home
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   const [loading, setLoading] = useState(false);
   const [currentTag, setCurrentTag] = useState('');
   const [currentFeature, setCurrentFeature] = useState('');
   const [specKey, setSpecKey] = useState('');
   const [specValue, setSpecValue] = useState('');
-  const [imagePreview, setImagePreview] = useState('');
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]); // ✅ Changed to array
+  const [currentImageUrl, setCurrentImageUrl] = useState(''); // ✅ For adding new images
   const [customCategory, setCustomCategory] = useState('');
   const [isCreatingNewCategory, setIsCreatingNewCategory] = useState(false);
   const [availableCategories, setAvailableCategories] = useState(categories);
@@ -71,7 +113,7 @@ export default function CreateProductPage() {
     description: '',
     price: 0,
     category: '',
-    imageUrl: '',
+    images: [], // ✅ Changed to empty array
     inStock: true,
     inventory: 0,
     tags: [],
@@ -88,7 +130,7 @@ export default function CreateProductPage() {
     if (!formData.description.trim()) newErrors.description = 'Description is required';
     if (formData.price <= 0) newErrors.price = 'Price must be greater than 0';
     if (!formData.category) newErrors.category = 'Category is required';
-    if (!formData.imageUrl.trim()) newErrors.imageUrl = 'Image URL is required';
+    if (formData.images.length === 0) newErrors.images = 'At least one image is required'; // ✅ Changed validation
     if (formData.inventory < 0) newErrors.inventory = 'Inventory cannot be negative';
     
     setErrors(newErrors);
@@ -180,8 +222,36 @@ export default function CreateProductPage() {
   };
 
   const handleImageUrlChange = (url: string) => {
-    handleInputChange('imageUrl', url);
-    setImagePreview(url);
+    setCurrentImageUrl(url);
+  };
+
+  const addImage = () => {
+    if (!currentImageUrl.trim()) {
+      toast.error('Please enter an image URL');
+      return;
+    }
+    
+    if (formData.images.includes(currentImageUrl)) {
+      toast.error('This image URL is already added');
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, currentImageUrl]
+    }));
+    setImagePreviews(prev => [...prev, currentImageUrl]);
+    setCurrentImageUrl('');
+    toast.success('Image added successfully');
+  };
+
+  const removeImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    toast.success('Image removed');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -229,7 +299,10 @@ export default function CreateProductPage() {
     if (draft) {
       const draftData = JSON.parse(draft);
       setFormData(draftData);
-      setImagePreview(draftData.imageUrl);
+      // Set image previews from the loaded images array
+      if (draftData.images && Array.isArray(draftData.images)) {
+        setImagePreviews(draftData.images);
+      }
       toast.success('Draft loaded');
     } else {
       toast.error('No draft found');
@@ -395,40 +468,84 @@ export default function CreateProductPage() {
                 </CardContent>
               </Card>
 
-              {/* Image */}
+              {/* Images */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <ImageIcon className="h-5 w-5" />
-                    Product Image
+                    Product Images ({formData.images.length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="imageUrl">Image URL *</Label>
-                    <Input
-                      id="imageUrl"
-                      value={formData.imageUrl}
-                      onChange={(e) => handleImageUrlChange(e.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                      className={errors.imageUrl ? 'border-red-500' : ''}
-                    />
-                    {errors.imageUrl && (
-                      <p className="text-sm text-red-500 mt-1">{errors.imageUrl}</p>
+                    <Label htmlFor="imageUrl">Add Image URL *</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="imageUrl"
+                        value={currentImageUrl}
+                        onChange={(e) => handleImageUrlChange(e.target.value)}
+                        placeholder="https://example.com/image.jpg"
+                        className="flex-1"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addImage();
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        onClick={addImage}
+                        disabled={!currentImageUrl.trim()}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {errors.images && (
+                      <p className="text-sm text-red-500 mt-1">{errors.images}</p>
                     )}
                   </div>
-                  {/* Image Preview */}
-                  {imagePreview && (
+                  
+                  {/* Image Previews */}
+                  {formData.images.length > 0 && (
                     <div>
-                      <Label>Preview</Label>
-                      <div className="mt-2 w-48 h-48 border rounded-lg overflow-hidden">
-                        <img 
-                          src={imagePreview} 
-                          alt="Preview" 
-                          className="w-full h-full object-cover"
-                          onError={() => setImagePreview('')}
-                        />
+                      <Label>Image Previews ({formData.images.length})</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-2">
+                        {formData.images.map((imageUrl, index) => (
+                          <div key={index} className="relative group">
+                            <div className="aspect-square border rounded-lg overflow-hidden bg-gray-50">
+                              <img 
+                                src={imageUrl} 
+                                alt={`Preview ${index + 1}`} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = '/placeholder-image.jpg';
+                                }}
+                              />
+                            </div>
+                            <div className="absolute top-2 right-2">
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => removeImage(index)}
+                                className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="absolute bottom-2 left-2">
+                              <Badge variant="secondary" className="text-xs">
+                                {index === 0 ? 'Main' : `${index + 1}`}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
                       </div>
+                      <p className="text-sm text-gray-500 mt-2">
+                        The first image will be used as the main product image.
+                      </p>
                     </div>
                   )}
                 </CardContent>
@@ -629,9 +746,9 @@ export default function CreateProductPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="border rounded-lg p-4 bg-white">
-                    {imagePreview && (
+                    {formData.images.length > 0 && (
                       <div className="aspect-square bg-gray-100 rounded-lg mb-3 overflow-hidden">
-                        <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                        <img src={formData.images[0]} alt="Preview" className="w-full h-full object-cover" />
                       </div>
                     )}
                     <h3 className="font-semibold mb-1">{formData.title || 'Product Title'}</h3>

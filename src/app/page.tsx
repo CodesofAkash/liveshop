@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useUser } from '@clerk/nextjs'
-import { useProductsStore, useLiveStore, useUIStore, useCartStore } from '@/lib/store'
+import { useUser, SignInButton } from '@clerk/nextjs'
+import { useProductsStore, useLiveStore, useUIStore } from '@/lib/store'
+import { useDbCartStore } from '@/lib/cart-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -139,46 +140,24 @@ interface Category {
 }
 
 // Product Card Component
-const ProductCard = ({ product, onClick, user, router }: { 
+const ProductCard = ({ product, onClick, user }: { 
   product: ApiProduct; 
   onClick?: () => void;
   user: any;
-  router: any;
 }) => {
-  const { addItem } = useCartStore()
+  const { addItem } = useDbCartStore()
   const addNotification = useUIStore((state) => state.addNotification)
   const [isAdding, setIsAdding] = useState(false)
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent triggering onClick when adding to cart
     
-    // Check if user is authenticated
-    if (!user) {
-      addNotification({
-        type: 'error',
-        title: 'Authentication Required',
-        message: 'Please sign in to add items to cart',
-      })
-      router.push('/sign-in?redirect_url=' + encodeURIComponent(window.location.pathname))
-      return
-    }
+    // This function will only be called for authenticated users
+    if (!user) return
     
     setIsAdding(true)
     try {
-      const storeProduct = {
-        id: product.id,
-        name: product.title, // Map title to name for store compatibility
-        description: product.description,
-        price: product.price,
-        images: product.images,
-        category: product.category,
-        sellerId: product.sellerId,
-        inventory: product.inventory,
-        rating: product.rating,
-        createdAt: new Date(product.createdAt),
-      }
-      
-      addItem(storeProduct, 1)
+      await addItem(product.id, 1)
       
       addNotification({
         type: 'success',
@@ -264,19 +243,33 @@ const ProductCard = ({ product, onClick, user, router }: {
         </div>
       </CardContent>
       
-      <CardFooter className="p-4 pt-0">
-        <Button 
-          onClick={handleAddToCart}
-          disabled={product.inventory === 0 || isAdding}
-          className="w-full group-hover:bg-primary/90"
-        >
-          {isAdding ? (
-            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
+      <CardFooter className="p-4 pt-0 flex justify-center">
+        {user ? (
+          <Button 
+        onClick={handleAddToCart}
+        disabled={product.inventory === 0 || isAdding}
+        className="w-full group-hover:bg-primary/90 max-w-xs"
+          >
+        {isAdding ? (
+          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+        ) : (
+          <ShoppingCart className="h-4 w-4 mr-2" />
+        )}
+        {product.inventory === 0 ? 'Out of Stock' : 'Add to Cart'}
+          </Button>
+        ) : (
+          <div onClick={(e) => e.stopPropagation()} className="w-full flex justify-center">
+        <SignInButton mode="modal">
+          <Button 
+            disabled={product.inventory === 0}
+            className="w-full group-hover:bg-primary/90 max-w-xs"
+          >
             <ShoppingCart className="h-4 w-4 mr-2" />
-          )}
-          {product.inventory === 0 ? 'Out of Stock' : 'Add to Cart'}
-        </Button>
+            {product.inventory === 0 ? 'Out of Stock' : 'Add to Cart'}
+          </Button>
+        </SignInButton>
+          </div>
+        )}
       </CardFooter>
     </Card>
   )
@@ -437,11 +430,11 @@ const HeroSection = () => {
           Experience the future of shopping with live streaming, social features, and amazing deals
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Button size="lg" className="bg-white text-purple-600 hover:bg-gray-100">
+          <Button size="lg" variant="outline" className="text-purple-600 hover:bg-gray-100">
             <Eye className="h-5 w-5 mr-2" />
             Watch Live Sessions
           </Button>
-          <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-purple-600">
+          <Button size="lg" variant="outline" className="hover:bg-gray-100 text-purple-600">
             <TrendingUp className="h-5 w-5 mr-2" />
             Trending Products
           </Button>
@@ -510,35 +503,6 @@ export default function HomePage() {
   const router = useRouter()
   const { user } = useUser()
   
-  // Add error boundary for debugging
-  const [renderError, setRenderError] = useState<string | null>(null)
-  
-  // Catch any rendering errors
-  useEffect(() => {
-    const handleError = (error: ErrorEvent) => {
-      console.error('Page render error:', error)
-      setRenderError(error.message)
-    }
-    
-    window.addEventListener('error', handleError)
-    return () => window.removeEventListener('error', handleError)
-  }, [])
-  
-  // If there's a render error, show it
-  if (renderError) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Render Error</h1>
-          <p className="text-gray-600">{renderError}</p>
-          <Button onClick={() => setRenderError(null)} className="mt-4">
-            Try Again
-          </Button>
-        </div>
-      </div>
-    )
-  }
-  
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -588,10 +552,9 @@ const loadProducts = useCallback(async (page = 1) => {
       sortOrder,
     })
 
-    // Use response directly since fetchProducts already returns parsed JSON
     const data = response;
-    const products = data.data?.products || []; // Safe access with fallback
-    const pagination = data.data?.pagination; // Safe access
+    const products = data.data?.products || [];
+    const pagination = data.data?.pagination;
 
     if (data.success && products && products.length > 0) {
       setProducts(products)
@@ -673,7 +636,7 @@ const loadProducts = useCallback(async (page = 1) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">        
+      <div className="container mx-auto px-4 py-8">
         {/* Hero Section */}
         <HeroSection />
 
@@ -758,7 +721,6 @@ const loadProducts = useCallback(async (page = 1) => {
                     product={product} 
                     onClick={() => router.push(`/products/${product.id}`)}
                     user={user}
-                    router={router}
                   />
                 ))}
               </div>
@@ -824,13 +786,22 @@ const loadProducts = useCallback(async (page = 1) => {
                     Clear Filters
                   </Button>
                 )}
-                <Button 
-                  onClick={() => router.push('/products/create')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Product
-                </Button>
+                {user ? (
+                  <Button 
+                    onClick={() => router.push('/products/create')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Product
+                  </Button>
+                ) : (
+                  <SignInButton mode="modal">
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Product
+                    </Button>
+                  </SignInButton>
+                )}
               </div>
             </div>
           )}
