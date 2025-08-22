@@ -7,7 +7,6 @@ import { Star, ShoppingCart, Heart, Share2, Truck, Shield, RotateCcw, Plus, Minu
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDbCartStore } from '@/lib/cart-store';
 import { useUser, SignInButton } from '@clerk/nextjs';
@@ -154,7 +153,7 @@ export default function ProductDetailPage() {
     try {
       await addItem(product.id, quantity);
       toast.success(`Added ${quantity} ${product?.title} to cart!`);
-    } catch (error) {
+    } catch {
       toast.error('Failed to add item to cart');
     }
   };

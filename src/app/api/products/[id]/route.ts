@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth, clerkClient } from '@clerk/nextjs/server'
 
+interface ReviewWithRating {
+  id: string
+  rating: number
+}
+
 // GET /api/products/[id] - Fetch single product
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
@@ -85,7 +90,7 @@ export async function GET(
 
     // Calculate average rating
     const averageRating = product.reviews.length > 0 
-      ? product.reviews.reduce((sum, review) => sum + review.rating, 0) / product.reviews.length
+      ? product.reviews.reduce((sum: number, review: ReviewWithRating) => sum + review.rating, 0) / product.reviews.length
       : 0
 
     const productWithRating = {
@@ -111,7 +116,7 @@ export async function GET(
 // PUT /api/products/[id] - Update product (owner only)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -122,6 +127,8 @@ export async function PUT(
         { status: 401 }
       )
     }
+
+    const { id } = await params
 
     // Find user by clerkId to get MongoDB ObjectId
     let user = await prisma.user.findUnique({
@@ -153,7 +160,7 @@ export async function PUT(
 
     // Check if product exists and user owns it
     const existingProduct = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     if (!existingProduct) {
@@ -175,7 +182,7 @@ export async function PUT(
 
     // Update product
     const product = await prisma.product.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...(name && { name }),
         ...(description && { description }),
@@ -213,7 +220,7 @@ export async function PUT(
 // DELETE /api/products/[id] - Delete product (owner only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -224,6 +231,8 @@ export async function DELETE(
         { status: 401 }
       )
     }
+
+    const { id } = await params
 
     // Find user by clerkId to get MongoDB ObjectId
     let user = await prisma.user.findUnique({
@@ -255,7 +264,7 @@ export async function DELETE(
 
     // Check if product exists and user owns it
     const existingProduct = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     if (!existingProduct) {
@@ -274,7 +283,7 @@ export async function DELETE(
 
     // Delete product
     await prisma.product.delete({
-      where: { id: params.id },
+      where: { id: id },
     })
 
     return NextResponse.json({

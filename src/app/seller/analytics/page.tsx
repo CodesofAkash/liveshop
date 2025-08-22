@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -14,8 +14,6 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
@@ -32,8 +30,6 @@ import {
   Calendar,
   Download,
   ArrowLeft,
-  Star,
-  Package,
   Target
 } from 'lucide-react'
 import Link from 'next/link'
@@ -92,11 +88,7 @@ export default function SellerAnalytics() {
   const [timeRange, setTimeRange] = useState('30d')
   const [activeTab, setActiveTab] = useState('overview')
 
-  useEffect(() => {
-    fetchAnalytics()
-  }, [timeRange])
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/seller/analytics?range=${timeRange}`)
@@ -110,7 +102,11 @@ export default function SellerAnalytics() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [timeRange])
+
+  useEffect(() => {
+    fetchAnalytics()
+  }, [timeRange, fetchAnalytics])
 
   const downloadReport = () => {
     // Implementation for downloading analytics report
@@ -315,7 +311,7 @@ export default function SellerAnalytics() {
                       cx="50%"
                       cy="50%"
                       outerRadius={80}
-                      label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                      label={({ category, percent }) => `${category} ${percent ? (percent * 100).toFixed(0) : 0}%`}
                     >
                       {analytics.products.categoryBreakdown.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -467,7 +463,7 @@ export default function SellerAnalytics() {
                       innerRadius={40}
                       outerRadius={80}
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
                     >
                       <Cell fill="#00C49F" />
                       <Cell fill="#FFBB28" />

@@ -1,15 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Search,
-  Filter,
   ArrowLeft,
   Package,
   Truck,
@@ -78,11 +77,7 @@ export default function SellerOrders() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
-  useEffect(() => {
-    fetchOrders()
-  }, [currentPage, statusFilter, paymentFilter, searchTerm])
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
@@ -108,7 +103,11 @@ export default function SellerOrders() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentPage, statusFilter, paymentFilter, searchTerm])
+
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
@@ -122,7 +121,10 @@ export default function SellerOrders() {
         const data = await response.json()
         if (data.success) {
           setOrders(orders.map(order => 
-            order.id === orderId ? { ...order, status: newStatus as any } : order
+            order.id === orderId ? { 
+              ...order, 
+              status: newStatus.toLowerCase() as 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' 
+            } : order
           ))
         }
       }
@@ -403,10 +405,16 @@ export default function SellerOrders() {
                 <div className="flex flex-wrap gap-2">
                   {order.items.slice(0, 3).map((item) => (
                     <div key={item.id} className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
-                      <img
+                      <Image
                         src={item.product.images[0] || '/placeholder-image.jpg'}
                         alt={item.product.title}
-                        className="w-8 h-8 object-cover rounded"
+                        width={32}
+                        height={32}
+                        className="object-cover rounded"
+                        style={{
+                          width: '32px',
+                          height: '32px'
+                        }}
                       />
                       <span className="text-sm">{item.product.title}</span>
                       <Badge variant="secondary">×{item.quantity}</Badge>

@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+interface ProductSuggestion {
+  title: string
+}
+
+interface ProductWithReviews {
+  id: string
+  title: string
+  price: number
+  images: string[]
+  reviews: ReviewForSearch[]
+}
+
+interface ReviewForSearch {
+  rating: number
+}
+
 // GET /api/search - Advanced search with suggestions
 export async function GET(request: NextRequest) {
   try {
@@ -38,7 +54,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: {
-          suggestions: suggestions.map(p => p.title),
+          suggestions: suggestions.map((p: ProductSuggestion) => p.title),
         },
       })
     }
@@ -71,10 +87,10 @@ export async function GET(request: NextRequest) {
       take: 50,
     })
 
-    const productsWithRating = products.map((product) => ({
+    const productsWithRating = products.map((product: ProductWithReviews) => ({
       ...product,
       rating: product.reviews.length > 0 
-        ? product.reviews.reduce((sum, review) => sum + review.rating, 0) / product.reviews.length
+        ? product.reviews.reduce((sum: number, review: ReviewForSearch) => sum + review.rating, 0) / product.reviews.length
         : 0,
       reviewCount: product.reviews.length,
     }))

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth, clerkClient } from '@clerk/nextjs/server'
-import { OrderStatus } from '@prisma/client'
+import { OrderStatus, Prisma } from '@prisma/client'
 
 // GET /api/orders - Fetch user orders
 export async function GET(request: NextRequest) {
@@ -89,14 +89,14 @@ export async function GET(request: NextRequest) {
     ])
 
     // ✅ Transform data to match frontend expectations and add buyer info
-    const transformedOrders = orders.map((order: any) => ({
-      ...order,
+    const transformedOrders = orders.map((order: unknown) => ({
+      ...(order as Record<string, unknown>),
       buyer: {
         id: user.id,
         name: user.name,
         email: user.email,
       },
-      items: order.items.map((item: any) => ({
+      items: (order as { items: { product: { title: string; [key: string]: unknown }; [key: string]: unknown }[] }).items.map((item) => ({
         ...item,
         product: {
           ...item.product,
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
 
     // Create order with transaction
-    const order = await prisma.$transaction(async (tx) => {
+    const order = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // First create the order without items
       const newOrder = await tx.order.create({
         data: {

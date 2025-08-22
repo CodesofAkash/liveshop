@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useUser, SignInButton } from '@clerk/nextjs'
-import { useProductsStore, useLiveStore, useUIStore } from '@/lib/store'
+import { useProductsStore, useUIStore, type Product } from '@/lib/store'
 import { useDbCartStore } from '@/lib/cart-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,12 +18,12 @@ import {
   Play,
   TrendingUp,
   Users,
-  Clock,
   RefreshCw,
   AlertCircle,
   Plus
 } from 'lucide-react'
-import { useRouter } from 'next/navigation' // Fixed: Changed from 'next/router' to 'next/navigation'
+import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 // Enhanced API Functions with better error handling and fallback
 const fetchProducts = async (params: {
@@ -114,26 +114,6 @@ const fetchCategories = async () => {
 
 // Removed mock data - will show empty state when no products found
 
-// Fixed Types for API responses
-interface ApiProduct {
-  id: string
-  title: string // Changed from 'name' to 'title' to match API
-  description: string
-  price: number
-  images: string[]
-  category: string
-  sellerId: string
-  inventory: number
-  rating: number
-  reviewCount: number
-  seller: {
-    id: string
-    name: string
-    email: string
-  }
-  createdAt: string
-}
-
 interface Category {
   name: string
   count: number
@@ -141,9 +121,9 @@ interface Category {
 
 // Product Card Component
 const ProductCard = ({ product, onClick, user }: { 
-  product: ApiProduct; 
+  product: Product; 
   onClick?: () => void;
-  user: any;
+  user: unknown;
 }) => {
   const { addItem } = useDbCartStore()
   const addNotification = useUIStore((state) => state.addNotification)
@@ -164,7 +144,7 @@ const ProductCard = ({ product, onClick, user }: {
         title: 'Added to Cart',
         message: `${product.title} has been added to your cart`,
       })
-    } catch (error) {
+    } catch {
       addNotification({
         type: 'error',
         title: 'Error',
@@ -190,10 +170,17 @@ const ProductCard = ({ product, onClick, user }: {
     >
       <CardHeader className="p-0">
         <div className="relative overflow-hidden rounded-t-lg">
-          <img
-            src={product.images[0] || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'}
+          <Image
+            src={product.images?.[0] || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'}
             alt={product.title}
+            width={300}
+            height={192}
             className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+            style={{
+              width: '100%',
+              height: 'auto',
+              aspectRatio: '300/192'
+            }}
             onError={(e) => {
               e.currentTarget.src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'
             }}
@@ -230,16 +217,12 @@ const ProductCard = ({ product, onClick, user }: {
             <span className="text-sm font-medium">
               {product.rating ? product.rating.toFixed(1) : 'New'}
             </span>
-            {product.reviewCount > 0 && (
-              <span className="text-xs text-gray-500">({product.reviewCount})</span>
-            )}
           </div>
           <Badge variant="outline">{product.category}</Badge>
         </div>
         
         <div className="flex items-center justify-between text-sm text-gray-500">
           <span>{product.inventory} in stock</span>
-          <span className="text-xs">{product.seller.name}</span>
         </div>
       </CardContent>
       
@@ -276,7 +259,7 @@ const ProductCard = ({ product, onClick, user }: {
 }
 
 // Live Session Card Component
-const LiveSessionCard = ({ session }: { session: any }) => {
+const LiveSessionCard = ({ session }: { session: { title: string; description: string; viewerCount: number } }) => {
   return (
     <Card className="bg-gradient-to-br from-red-50 to-pink-50 border-red-200 hover:shadow-lg transition-shadow">
       <CardContent className="p-4">
@@ -591,7 +574,7 @@ const loadProducts = useCallback(async (page = 1) => {
         })
       }
     }
-  } catch (error) {
+  } catch {
     // Show empty state on error
     setProducts([])
     setUsingMockData(false)

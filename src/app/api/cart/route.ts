@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 
+interface CartItemWithProduct {
+  id: string
+  quantity: number
+  price: number
+  product: {
+    id: string
+    title: string
+    images: string[]
+    seller: {
+      id: string
+      name: string | null
+      email: string
+    }
+  }
+}
+
 // GET /api/cart - Get user's cart
 export async function GET() {
   try {
@@ -74,8 +90,8 @@ export async function GET() {
     }
 
     // Calculate totals
-    const subtotal = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-    const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0)
+    const subtotal = cart.items.reduce((sum: number, item: CartItemWithProduct) => sum + (item.price * item.quantity), 0)
+    const itemCount = cart.items.reduce((sum: number, item: CartItemWithProduct) => sum + item.quantity, 0)
 
     return NextResponse.json({
       success: true,

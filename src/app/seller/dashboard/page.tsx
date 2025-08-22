@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,15 +16,10 @@ import {
   Eye,
   Star,
   DollarSign,
-  Users,
   BarChart3,
   Settings,
   Edit,
-  Trash2,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Truck
+  Trash2
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -343,10 +339,12 @@ export default function SellerDashboard() {
                 {products.map((product) => (
                   <div key={product.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center space-x-4">
-                      <img
+                      <Image
                         src={product.images[0] || '/placeholder-image.jpg'}
                         alt={product.title}
-                        className="w-16 h-16 object-cover rounded-lg"
+                        width={64}
+                        height={64}
+                        className="object-cover rounded-lg"
                       />
                       <div>
                         <h3 className="font-medium">{product.title}</h3>

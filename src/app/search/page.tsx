@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Image from 'next/image';
 import { 
   Search, 
   Filter, 
-  SlidersHorizontal, 
   Grid3X3, 
   List, 
   Star,
@@ -18,18 +17,14 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
-import { useCartStore } from '@/lib/store';
+import { useDbCartStore } from '@/lib/cart-store';
 import EnhancedSearch from '@/app/_components/EnhancedSearch';
 
 interface Product {
@@ -71,7 +66,7 @@ function SearchResultsContent() {
   const router = useRouter();
   const { user } = useUser();
   const searchParams = useSearchParams();
-  const { addToCart } = useCartStore();
+  const { addItem } = useDbCartStore();
   
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,13 +88,7 @@ function SearchResultsContent() {
     sortBy: 'relevance'
   });
 
-  useEffect(() => {
-    if (query || category) {
-      fetchSearchResults();
-    }
-  }, [query, category, filters, currentPage]);
-
-  const fetchSearchResults = async () => {
+  const fetchSearchResults = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -142,7 +131,13 @@ function SearchResultsContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [query, category, filters, currentPage]);
+
+  useEffect(() => {
+    if (query || category) {
+      fetchSearchResults();
+    }
+  }, [query, category, filters, currentPage, fetchSearchResults]);
 
   const handleFilterChange = (newFilters: Partial<SearchFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
@@ -157,14 +152,7 @@ function SearchResultsContent() {
       return;
     }
     
-    addToCart({
-      id: product.id,
-      title: product.title,
-      price: product.price,
-      imageUrl: product.imageUrl,
-      quantity: 1,
-      inStock: product.inStock
-    });
+    addItem(product.id, 1);
     toast.success(`${product.title} added to cart!`);
   };
 
@@ -403,7 +391,7 @@ function SearchResultsContent() {
             {/* Sort */}
             <Select
               value={filters.sortBy}
-              onValueChange={(value: any) => handleFilterChange({ sortBy: value })}
+              onValueChange={(value: string) => handleFilterChange({ sortBy: value as 'relevance' | 'price-asc' | 'price-desc' | 'rating' | 'newest' })}
             >
               <SelectTrigger className="w-40">
                 <SelectValue />

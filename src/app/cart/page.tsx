@@ -40,10 +40,7 @@ const Page = () => {
   const { 
     items, 
     loading,
-    error,
     subtotal,
-    total,
-    itemCount,
     fetchCart,
     updateQuantity, 
     removeItem, 
@@ -102,7 +99,7 @@ const Page = () => {
     try {
       await updateQuantity(itemId, newQuantity);
       toast.success('Cart updated successfully');
-    } catch (error) {
+    } catch {
       toast.error('Failed to update cart');
     }
   };
@@ -112,18 +109,8 @@ const Page = () => {
     try {
       await removeItem(itemId);
       toast.success('Item removed from cart');
-    } catch (error) {
+    } catch {
       toast.error('Failed to remove item');
-    }
-  };
-
-  // Handle clear cart
-  const handleClearCart = async () => {
-    try {
-      await clearCart();
-      toast.success('Cart cleared successfully');
-    } catch (error) {
-      toast.error('Failed to clear cart');
     }
   };
 
@@ -259,7 +246,7 @@ const Page = () => {
                       {item.product.images && item.product.images.length > 0 ? (
                         <Image
                           src={item.product.images[0]}
-                          alt={item.product.title || item.product.name || 'Product'}
+                          alt={item.product.title || 'Product'}
                           fill
                           className="object-cover"
                         />
@@ -275,7 +262,7 @@ const Page = () => {
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="font-semibold text-gray-800 line-clamp-2">
-                            {item.product.title || item.product.name}
+                            {item.product.title}
                           </h3>
                           <p className="text-sm text-gray-600 mt-1">
                             Category: {item.product.category}

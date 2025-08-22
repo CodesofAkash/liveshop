@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, SignInButton } from '@clerk/nextjs';
+import Image from 'next/image';
 import { 
   Package, 
-  Upload, 
   Plus, 
   X, 
   Save, 
@@ -54,7 +54,53 @@ const categories = [
 
 export default function CreateProductPage() {
   const router = useRouter();
-  const { user, isSignedIn, isLoaded } = useUser();
+  const { isSignedIn, isLoaded } = useUser();
+  
+  // All useState hooks must be at the top
+  const [loading, setLoading] = useState(false);
+  const [currentTag, setCurrentTag] = useState('');
+  const [currentFeature, setCurrentFeature] = useState('');
+  const [specKey, setSpecKey] = useState('');
+  const [specValue, setSpecValue] = useState('');
+  const [currentImageUrl, setCurrentImageUrl] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
+  const [isCreatingNewCategory, setIsCreatingNewCategory] = useState(false);
+  const [availableCategories, setAvailableCategories] = useState(categories);
+  
+  const [formData, setFormData] = useState<ProductFormData>({
+    title: '',
+    description: '',
+    price: 0,
+    category: '',
+    images: [],
+    inStock: true,
+    inventory: 0,
+    tags: [],
+    features: [],
+    specifications: {}
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Load categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data.length > 0) {
+            const categoryNames = data.data.map((cat: { name: string }) => cat.name);
+            setAvailableCategories([...new Set([...categories, ...categoryNames])]);
+          }
+        }
+      } catch {
+        console.error('Failed to fetch categories');
+      }
+    };
+
+    fetchCategories();
+  }, []);
   
   // Show loading while checking authentication
   if (!isLoaded) {
@@ -96,32 +142,6 @@ export default function CreateProductPage() {
       </div>
     );
   }
-  
-  const [loading, setLoading] = useState(false);
-  const [currentTag, setCurrentTag] = useState('');
-  const [currentFeature, setCurrentFeature] = useState('');
-  const [specKey, setSpecKey] = useState('');
-  const [specValue, setSpecValue] = useState('');
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]); // ✅ Changed to array
-  const [currentImageUrl, setCurrentImageUrl] = useState(''); // ✅ For adding new images
-  const [customCategory, setCustomCategory] = useState('');
-  const [isCreatingNewCategory, setIsCreatingNewCategory] = useState(false);
-  const [availableCategories, setAvailableCategories] = useState(categories);
-  
-  const [formData, setFormData] = useState<ProductFormData>({
-    title: '', // ✅ Changed from 'name' to 'title'
-    description: '',
-    price: 0,
-    category: '',
-    images: [], // ✅ Changed to empty array
-    inStock: true,
-    inventory: 0,
-    tags: [],
-    features: [],
-    specifications: {}
-  });
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -137,33 +157,13 @@ export default function CreateProductPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleInputChange = (field: keyof ProductFormData, value: any) => {
+  const handleInputChange = (field: keyof ProductFormData, value: string | number | boolean | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
-
-  // Load categories from API
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('/api/categories');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data.length > 0) {
-            const categoryNames = data.data.map((cat: any) => cat.name);
-            setAvailableCategories([...new Set([...categories, ...categoryNames])]);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch categories:', error);
-      }
-    };
-
-    fetchCategories();
-  }, []);
 
   const addTag = () => {
     if (currentTag.trim() && !formData.tags.includes(currentTag.trim())) {
@@ -240,7 +240,6 @@ export default function CreateProductPage() {
       ...prev,
       images: [...prev.images, currentImageUrl]
     }));
-    setImagePreviews(prev => [...prev, currentImageUrl]);
     setCurrentImageUrl('');
     toast.success('Image added successfully');
   };
@@ -250,7 +249,6 @@ export default function CreateProductPage() {
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
     toast.success('Image removed');
   };
 
@@ -299,10 +297,6 @@ export default function CreateProductPage() {
     if (draft) {
       const draftData = JSON.parse(draft);
       setFormData(draftData);
-      // Set image previews from the loaded images array
-      if (draftData.images && Array.isArray(draftData.images)) {
-        setImagePreviews(draftData.images);
-      }
       toast.success('Draft loaded');
     } else {
       toast.error('No draft found');
@@ -514,10 +508,16 @@ export default function CreateProductPage() {
                         {formData.images.map((imageUrl, index) => (
                           <div key={index} className="relative group">
                             <div className="aspect-square border rounded-lg overflow-hidden bg-gray-50">
-                              <img 
+                              <Image 
                                 src={imageUrl} 
                                 alt={`Preview ${index + 1}`} 
-                                className="w-full h-full object-cover"
+                                width={200}
+                                height={200}
+                                className="object-cover w-full h-full"
+                                style={{
+                                  width: '100%',
+                                  height: '100%'
+                                }}
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
                                   target.src = '/placeholder-image.jpg';
@@ -748,7 +748,17 @@ export default function CreateProductPage() {
                   <div className="border rounded-lg p-4 bg-white">
                     {formData.images.length > 0 && (
                       <div className="aspect-square bg-gray-100 rounded-lg mb-3 overflow-hidden">
-                        <img src={formData.images[0]} alt="Preview" className="w-full h-full object-cover" />
+                        <Image 
+                          src={formData.images[0]} 
+                          alt="Preview" 
+                          width={300} 
+                          height={300} 
+                          className="object-cover w-full h-full"
+                          style={{
+                            width: '100%',
+                            height: '100%'
+                          }}
+                        />
                       </div>
                     )}
                     <h3 className="font-semibold mb-1">{formData.title || 'Product Title'}</h3>

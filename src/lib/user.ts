@@ -38,7 +38,7 @@ export async function createUser(data: CreateUserData) {
     })
     
     return user
-  } catch (error) {
+  } catch {
     throw new Error('Failed to create user in database')
   }
 }

@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@clerk/nextjs/server'
 
+interface OrderItemWithProduct {
+  id: string
+  quantity: number
+  price: number
+  product: {
+    id: string
+    title: string
+    images: string[]
+    sellerId: string
+  }
+}
+
 // GET /api/orders/[id] - Fetch single order
 export async function GET(
   request: NextRequest,
@@ -72,7 +84,7 @@ export async function GET(
         email: user.email,
         phone: user.phone,
       },
-      items: await Promise.all(order.items.map(async item => {
+      items: await Promise.all(order.items.map(async (item: OrderItemWithProduct) => {
         // Fetch seller information separately with fallback
         let seller = null;
         try {

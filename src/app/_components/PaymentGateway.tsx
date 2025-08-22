@@ -5,13 +5,51 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, CreditCard, Shield, CheckCircle } from 'lucide-react';
+import { Loader2, CreditCard, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
+// Razorpay types
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpayPaymentResponse) => void;
+  prefill: {
+    name: string;
+    email: string;
+    contact: string;
+  };
+  theme: {
+    color: string;
+  };
+}
+
+interface RazorpayPaymentResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+  error?: {
+    code: string;
+    description: string;
+    source: string;
+    step: string;
+    reason: string;
+    metadata: Record<string, string>;
+  };
+}
+
+interface RazorpayInstance {
+  open(): void;
+  on(event: string, callback: (response: RazorpayPaymentResponse) => void): void;
+}
+
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
   }
 }
 
@@ -19,8 +57,8 @@ interface PaymentGatewayProps {
   orderId: string;
   amount: number;
   currency?: string;
-  onSuccess?: (response: any) => void;
-  onFailure?: (error: any) => void;
+  onSuccess?: (response: RazorpayPaymentResponse) => void;
+  onFailure?: (error: RazorpayPaymentResponse) => void;
 }
 
 export default function PaymentGateway({
@@ -79,7 +117,7 @@ export default function PaymentGateway({
         name: 'LiveShop',
         description: `Order #${order.id}`,
         order_id: razorpayOrderId,
-        handler: async function (response: any) {
+        handler: async function (response: RazorpayPaymentResponse) {
           try {
             // Verify payment
             const verifyResponse = await fetch('/api/payments/verify', {
@@ -112,7 +150,14 @@ export default function PaymentGateway({
           } catch (error) {
             console.error('Payment verification error:', error);
             toast.error('Payment verification failed');
-            if (onFailure) onFailure(error);
+            if (onFailure) {
+              const errorResponse: RazorpayPaymentResponse = {
+                razorpay_payment_id: '',
+                razorpay_order_id: '',
+                razorpay_signature: ''
+              };
+              onFailure(errorResponse);
+            }
           }
         },
         prefill: {
@@ -136,12 +181,12 @@ export default function PaymentGateway({
 
       const razorpay = new window.Razorpay(options);
       
-      razorpay.on('payment.failed', function (response: any) {
+      razorpay.on('payment.failed', function (response: RazorpayPaymentResponse) {
         console.error('Payment failed:', response.error);
         toast.error('Payment failed', {
-          description: response.error.description
+          description: response.error?.description || 'Unknown error'
         });
-        if (onFailure) onFailure(response.error);
+        if (onFailure) onFailure(response);
         setIsProcessing(false);
       });
 
@@ -150,7 +195,22 @@ export default function PaymentGateway({
     } catch (error) {
       console.error('Payment initiation error:', error);
       toast.error('Failed to initiate payment');
-      if (onFailure) onFailure(error);
+      if (onFailure) {
+        const errorResponse: RazorpayPaymentResponse = {
+          razorpay_payment_id: '',
+          razorpay_order_id: '',
+          razorpay_signature: '',
+          error: {
+            code: 'INIT_ERROR',
+            description: 'Failed to initiate payment',
+            source: 'payment_gateway',
+            step: 'initiation',
+            reason: 'unknown',
+            metadata: {}
+          }
+        };
+        onFailure(errorResponse);
+      }
     } finally {
       setIsProcessing(false);
     }

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { 
@@ -10,7 +11,6 @@ import {
   MapPin, 
   CreditCard, 
   Settings,
-  ShoppingBag,
   Star,
   Eye,
   Calendar,
@@ -20,7 +20,7 @@ import {
   ShoppingCart
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
@@ -69,74 +69,90 @@ export default function UserDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Mock data for demonstration
-  const mockOrders: Order[] = [
-    {
-      id: '1',
-      orderNumber: 'LS-2024-001',
-      date: '2024-01-15',
-      status: 'delivered',
-      total: 299.99,
-      items: [
+  const fetchUserData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Mock data for demonstration
+      const mockOrders: Order[] = [
         {
           id: '1',
-          name: 'Premium Wireless Headphones',
-          price: 199.99,
-          quantity: 1,
-          imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200'
+          orderNumber: 'LS-2024-001',
+          date: '2024-01-15',
+          status: 'delivered',
+          total: 299.99,
+          items: [
+            {
+              id: '1',
+              name: 'Premium Wireless Headphones',
+              price: 199.99,
+              quantity: 1,
+              imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200'
+            },
+            {
+              id: '2',
+              name: 'Organic Cotton T-Shirt',
+              price: 29.99,
+              quantity: 2,
+              imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200'
+            }
+          ]
         },
         {
           id: '2',
-          name: 'Organic Cotton T-Shirt',
-          price: 29.99,
-          quantity: 2,
-          imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=200'
+          orderNumber: 'LS-2024-002',
+          date: '2024-01-20',
+          status: 'shipped',
+          total: 149.99,
+          items: [
+            {
+              id: '3',
+              name: 'Smart Fitness Watch',
+              price: 149.99,
+              quantity: 1,
+              imageUrl: 'https://images.unsplash.com/photo-1544117519-31a4b719223d?w=200'
+            }
+          ]
         }
-      ]
-    },
-    {
-      id: '2',
-      orderNumber: 'LS-2024-002',
-      date: '2024-01-20',
-      status: 'shipped',
-      total: 149.99,
-      items: [
+      ];
+
+      const mockWishlist: WishlistItem[] = [
         {
-          id: '3',
-          name: 'Smart Fitness Watch',
-          price: 149.99,
-          quantity: 1,
-          imageUrl: 'https://images.unsplash.com/photo-1544117519-31a4b719223d?w=200'
+          id: '4',
+          name: 'Ceramic Coffee Mug Set',
+          price: 49.99,
+          imageUrl: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=200',
+          category: 'Home & Kitchen',
+          inStock: true
+        },
+        {
+          id: '5',
+          name: 'Leather Messenger Bag',
+          price: 89.99,
+          imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=200',
+          category: 'Accessories',
+          inStock: false
         }
-      ]
-    }
-  ];
+      ];
 
-  const mockWishlist: WishlistItem[] = [
-    {
-      id: '4',
-      name: 'Ceramic Coffee Mug Set',
-      price: 49.99,
-      imageUrl: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=200',
-      category: 'Home & Kitchen',
-      inStock: true
-    },
-    {
-      id: '5',
-      name: 'Leather Messenger Bag',
-      price: 89.99,
-      imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=200',
-      category: 'Accessories',
-      inStock: false
-    }
-  ];
+      const mockStats: UserStats = {
+        totalOrders: 12,
+        totalSpent: 1299.87,
+        loyaltyPoints: 1299,
+        memberSince: '2023-06-15'
+      };
 
-  const mockStats: UserStats = {
-    totalOrders: 12,
-    totalSpent: 1299.87,
-    loyaltyPoints: 1299,
-    memberSince: '2023-06-15'
-  };
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setOrders(mockOrders);
+      setWishlist(mockWishlist);
+      setUserStats(mockStats);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -147,29 +163,7 @@ export default function UserDashboard() {
     if (isLoaded && user) {
       fetchUserData();
     }
-  }, [isLoaded, isSignedIn, user, router]);
-
-  const fetchUserData = async () => {
-    setLoading(true);
-    try {
-      // In a real app, you'd fetch from your API
-      // const [ordersRes, wishlistRes, statsRes] = await Promise.all([
-      //   fetch('/api/orders'),
-      //   fetch('/api/wishlist'),
-      //   fetch('/api/user/stats')
-      // ]);
-
-      // For demo, use mock data
-      setTimeout(() => {
-        setOrders(mockOrders);
-        setWishlist(mockWishlist);
-        setUserStats(mockStats);
-        setLoading(false);
-      }, 1000);
-    } catch {
-      setLoading(false);
-    }
-  };
+  }, [isLoaded, isSignedIn, user, router, fetchUserData]);
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {
@@ -361,9 +355,11 @@ export default function UserDashboard() {
                   <div className="space-y-4">
                     {wishlist.slice(0, 3).map((item) => (
                       <div key={item.id} className="flex items-center gap-4 p-4 border rounded-lg">
-                        <img
+                        <Image
                           src={item.imageUrl}
                           alt={item.name}
+                          width={48}
+                          height={48}
                           className="w-12 h-12 object-cover rounded"
                         />
                         <div className="flex-1">
@@ -413,9 +409,11 @@ export default function UserDashboard() {
                       <div className="space-y-3">
                         {order.items.map((item) => (
                           <div key={item.id} className="flex items-center gap-4">
-                            <img
+                            <Image
                               src={item.imageUrl}
                               alt={item.name}
+                              width={64}
+                              height={64}
                               className="w-16 h-16 object-cover rounded"
                             />
                             <div className="flex-1">
@@ -462,9 +460,10 @@ export default function UserDashboard() {
                   {wishlist.map((item) => (
                     <Card key={item.id} className="overflow-hidden">
                       <div className="aspect-square relative">
-                        <img
+                        <Image
                           src={item.imageUrl}
                           alt={item.name}
+                          fill
                           className="w-full h-full object-cover"
                         />
                       </div>

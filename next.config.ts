@@ -1,7 +1,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['@prisma/client', 'prisma'], // Changed from experimental.serverComponentsExternalPackages
+  serverExternalPackages: ['@prisma/client', 'prisma'],
+  // Optimize performance and reduce rebuild times
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    // Reduce memory usage
+    optimizeCss: true,
+  },
+  // Configure allowed dev origins for ngrok
+  allowedDevOrigins: [
+    'glowing-prawn-completely.ngrok-free.app',
+    'localhost:3000',
+    '127.0.0.1:3000',
+    '192.168.56.1:3000',
+  ],
   async headers() {
     return [
       {
@@ -32,7 +45,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Add this for ngrok CORS issues
+  // Optimize images configuration
   images: {
     remotePatterns: [
       {
@@ -48,14 +61,41 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+    // Optimize image loading
+    formats: ['image/webp', 'image/avif'],
+    // Improve performance
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-  async rewrites() {
-    return [
-      {
-        source: '/:path*',
-        destination: '/:path*',
-      },
-    ];
+  // Optimize webpack for better performance
+  webpack: (config, { isServer, dev }) => {
+    // Fix for potential module resolution issues
+    config.resolve.alias = {
+      ...config.resolve.alias,
+    };
+    
+    // Avoid issues with certain packages
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+
+    // Optimize for development
+    if (dev) {
+      config.optimization = {
+        ...config.optimization,
+        removeAvailableModules: false,
+        removeEmptyChunks: false,
+        splitChunks: false,
+      };
+    }
+    
+    return config;
   },
 };
 

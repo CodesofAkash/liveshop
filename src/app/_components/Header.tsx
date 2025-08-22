@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { useUser, SignInButton, SignUpButton, SignOutButton, UserButton } from '@clerk/nextjs'
-import { useUserStore, useUIStore, useLiveStore } from '@/lib/store'
+import { useUIStore, useLiveStore } from '@/lib/store'
 import { useDbCartStore } from '@/lib/cart-store'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,7 +30,6 @@ import {
   NavigationMenu,
   NavigationMenuContent,
   NavigationMenuItem,
-  NavigationMenuLink,
   NavigationMenuList,
   NavigationMenuTrigger,
 } from '@/components/ui/navigation-menu'
@@ -58,11 +58,6 @@ import EnhancedSearch from './EnhancedSearch'
 // Cart Sidebar Component
 const CartSidebar = () => {
   const { items, isOpen, setCartOpen, removeItem, updateQuantity, clearCart } = useDbCartStore()
-
-  const handleCheckout = () => {
-    // This will redirect to checkout page
-    setCartOpen(false)
-  }
 
   const router = useRouter();
 
@@ -103,9 +98,11 @@ const CartSidebar = () => {
                 <div className="space-y-4">
                   {items.map((item) => (
                     <div key={item.id} className="flex items-center space-x-4 bg-gray-50 p-3 rounded-lg">
-                      <img
-                        src={item.product.images?.[0]}
+                      <Image
+                        src={item.product.images?.[0] || '/placeholder.png'}
                         alt={item.product.title}
+                        width={64}
+                        height={64}
                         className="w-16 h-16 object-cover rounded-md"
                       />
                       <div className="flex-1 min-w-0">

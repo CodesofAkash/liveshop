@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { getUserByClerkId, updateUser, deleteUser, UpdateUserData } from '@/lib/user'
 
 interface RouteParams {
-  params: { clerkId: string }
+  params: Promise<{ clerkId: string }>
 }
 
 // GET /api/users/[clerkId] - Get user by Clerk ID
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const { clerkId } = params
+    const { clerkId } = await params
     const user = await getUserByClerkId(clerkId)
 
     if (!user) {
@@ -58,7 +58,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const { clerkId } = params
+    const { clerkId } = await params
 
     // Only allow users to update their own data
     if (userId !== clerkId) {
@@ -109,7 +109,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const { clerkId } = params
+    const { clerkId } = await params
 
     // Only allow users to delete their own data
     if (userId !== clerkId) {

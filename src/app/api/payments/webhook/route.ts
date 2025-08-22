@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handlePaymentCaptured(payment: any) {
+async function handlePaymentCaptured(payment: { notes?: { orderId?: string }; id: string }) {
   const orderId = payment.notes?.orderId;
   if (orderId) {
     await prisma.order.update({
@@ -60,7 +60,7 @@ async function handlePaymentCaptured(payment: any) {
   }
 }
 
-async function handlePaymentFailed(payment: any) {
+async function handlePaymentFailed(payment: { notes?: { orderId?: string }; id: string }) {
   const orderId = payment.notes?.orderId;
   if (orderId) {
     await prisma.order.update({
@@ -74,7 +74,7 @@ async function handlePaymentFailed(payment: any) {
   }
 }
 
-async function handleOrderPaid(order: any) {
+async function handleOrderPaid(order: { notes?: { orderId?: string } }) {
   const orderId = order.notes?.orderId;
   if (orderId) {
     await prisma.order.update({

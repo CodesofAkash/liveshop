@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // PUT /api/cart/[itemId] - Update cart item quantity
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { itemId: string } }
+  { params }: { params: Promise<{ itemId: string }> }
 ) {
   try {
     const { userId } = await auth()
@@ -103,7 +103,7 @@ export async function PUT(
 // DELETE /api/cart/[itemId] - Remove item from cart
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { itemId: string } }
+  { params }: { params: Promise<{ itemId: string }> }
 ) {
   try {
     const { userId } = await auth()

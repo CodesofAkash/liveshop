@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, X, Clock, TrendingUp, Tag, ArrowRight } from 'lucide-react';
+import { Search, X, Clock, TrendingUp, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -53,38 +54,26 @@ export default function EnhancedSearch({
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
-  // Mock trending searches
-  const mockTrendingSearches: TrendingSearch[] = [
-    { term: "wireless headphones", count: 1250 },
-    { term: "smart watch", count: 980 },
-    { term: "coffee mug", count: 750 },
-    { term: "leather bag", count: 650 },
-    { term: "organic cotton", count: 540 }
-  ];
+  // Simple search without complex debouncing
+  const performSearch = async (term: string) => {
+    if (term.length < 2) {
+      setSuggestions([]);
+      return;
+    }
 
-  // Debounced search function
-  const debouncedSearch = useCallback(
-    debounce(async (searchTerm: string) => {
-      if (searchTerm.length < 2) {
-        setSuggestions([]);
-        return;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(term)}&limit=5`);
+      if (response.ok) {
+        const data = await response.json();
+        setSuggestions(data.products || []);
       }
-
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}&limit=5`);
-        if (response.ok) {
-          const data = await response.json();
-          setSuggestions(data.products || []);
-        }
-      } catch {
-        setSuggestions([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 300),
-    []
-  );
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Load search history and trending searches
   useEffect(() => {
@@ -92,13 +81,20 @@ export default function EnhancedSearch({
     if (savedHistory) {
       setSearchHistory(JSON.parse(savedHistory));
     }
+    const mockTrendingSearches: TrendingSearch[] = [
+      { term: 'laptop', count: 1250 },
+      { term: 'smartphone', count: 980 },
+      { term: 'headphones', count: 750 },
+      { term: 'gaming chair', count: 650 },
+      { term: 'smartwatch', count: 500 }
+    ];
     setTrendingSearches(mockTrendingSearches);
   }, []);
 
   // Handle search input change
   useEffect(() => {
-    debouncedSearch(query);
-  }, [query, debouncedSearch]);
+    performSearch(query);
+  }, [query]);
 
   // Handle clicks outside to close suggestions
   useEffect(() => {
@@ -245,10 +241,12 @@ export default function EnhancedSearch({
                     }`}
                     onClick={() => router.push(`/products/${product.id}`)}
                   >
-                    <img
+                    <Image
                       src={product.imageUrl}
                       alt={product.name}
-                      className="w-10 h-10 object-cover rounded"
+                      width={40}
+                      height={40}
+                      className="object-cover rounded"
                     />
                     <div className="flex-1">
                       <p className="font-medium text-sm">{product.name}</p>
@@ -345,7 +343,7 @@ export default function EnhancedSearch({
             {query.length >= 2 && !loading && suggestions.length === 0 && (
               <div className="px-4 py-8 text-center text-sm text-gray-500">
                 <Search className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                No products found for "{query}"
+                No products found for &quot;{query}&quot;
                 <br />
                 <Button
                   variant="link"
@@ -370,7 +368,7 @@ export default function EnhancedSearch({
                     className="w-full justify-start text-blue-600 hover:text-blue-700"
                   >
                     <Search className="h-4 w-4 mr-2" />
-                    Search for "{query}"
+                    Search for &quot;{query}&quot;
                   </Button>
                 </div>
               </>
@@ -380,16 +378,4 @@ export default function EnhancedSearch({
       )}
     </div>
   );
-}
-
-// Debounce utility function
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(null, args), wait);
-  };
 }

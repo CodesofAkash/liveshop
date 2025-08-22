@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback } from 'react'
+import { useParams } from 'next/navigation'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -22,7 +23,6 @@ import {
   CreditCard,
   Phone,
   Mail,
-  Calendar,
   Edit,
   Save,
   Download,
@@ -44,7 +44,7 @@ interface OrderItem {
   selectedVariants?: {
     color?: string
     size?: string
-    [key: string]: any
+    [key: string]: string | undefined
   }
 }
 
@@ -96,7 +96,6 @@ interface Order {
 
 export default function OrderDetails() {
   const params = useParams()
-  const router = useRouter()
   const orderId = params.id as string
 
   const [order, setOrder] = useState<Order | null>(null)
@@ -108,13 +107,7 @@ export default function OrderDetails() {
   const [newStatus, setNewStatus] = useState('')
   const [adminNotes, setAdminNotes] = useState('')
 
-  useEffect(() => {
-    if (orderId) {
-      fetchOrder()
-    }
-  }, [orderId])
-
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/orders/${orderId}`) // ✅ Use buyer orders API, not seller
@@ -124,16 +117,21 @@ export default function OrderDetails() {
         setOrder(data.data)
         setTrackingNumber(data.data.trackingNumber || '')
         setNewStatus(data.data.status)
-        setAdminNotes(data.data.adminNotes || '')
       } else {
-        setOrder(null)
+        console.error('Failed to fetch order:', data.error)
       }
-    } catch {
-      setOrder(null)
+    } catch (error) {
+      console.error('Error fetching order:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [orderId])
+
+  useEffect(() => {
+    if (orderId) {
+      fetchOrder()
+    }
+  }, [orderId, fetchOrder])
 
   const updateOrderStatus = async () => {
     if (!order) return
@@ -244,7 +242,7 @@ export default function OrderDetails() {
           <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-2xl font-semibold mb-2">Order Not Found</h2>
           <p className="text-muted-foreground mb-4">
-            The order you're looking for doesn't exist or you don't have permission to view it.
+            The order you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission to view it.
           </p>
           <Button asChild>
             <Link href="/orders">
@@ -305,10 +303,12 @@ export default function OrderDetails() {
               <div className="space-y-4">
                 {order.items.map((item) => (
                   <div key={item.id} className="flex items-center space-x-4 p-4 border rounded-lg">
-                    <img
+                    <Image
                       src={item.product.images[0] || '/placeholder-image.jpg'}
                       alt={item.product.title}
-                      className="w-16 h-16 object-cover rounded-lg"
+                      width={64}
+                      height={64}
+                      className="object-cover rounded-lg"
                     />
                     <div className="flex-1">
                       <h3 className="font-medium">{item.product.title}</h3>

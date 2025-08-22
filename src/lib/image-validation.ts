@@ -16,7 +16,7 @@ export async function validateImageUrl(url: string): Promise<boolean> {
     }
     
     return response.ok;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -55,7 +55,7 @@ export async function validateAndSanitizeImageUrl(url: string): Promise<{
     }
     
     return { isValid: true, sanitizedUrl: urlObj.toString() };
-  } catch (error) {
+  } catch {
     return { isValid: false, error: 'Invalid URL format' };
   }
 }

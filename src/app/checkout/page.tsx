@@ -13,11 +13,21 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
-import { MapPin, CreditCard, Package, Truck, ArrowLeft, Plus } from 'lucide-react';
-import { useCartStore } from '@/lib/store';
-import PaymentGateway from '@/app/_components/PaymentGateway';
-import OrderSummary from '@/app/_components/OrderSummary';
+import { MapPin, CreditCard, Package, Truck, ArrowLeft } from 'lucide-react';
+import { useDbCartStore } from '@/lib/cart-store';
 import { toast } from 'sonner';
+import dynamic from 'next/dynamic';
+
+// Dynamic imports to prevent webpack issues
+const PaymentGateway = dynamic(() => import('@/app/_components/PaymentGateway'), {
+  ssr: false,
+  loading: () => <div className="animate-pulse bg-gray-200 h-32 rounded" />
+});
+
+const OrderSummary = dynamic(() => import('@/app/_components/OrderSummary'), {
+  ssr: false,
+  loading: () => <div className="animate-pulse bg-gray-200 h-48 rounded" />
+});
 
 interface ShippingAddress {
   fullName: string;
@@ -33,7 +43,7 @@ interface ShippingAddress {
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useUser();
-  const { items, total, discount, clearCart } = useCartStore();
+  const { items, total, clearCart, fetchCart, loading } = useDbCartStore();
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -56,7 +66,7 @@ export default function CheckoutPage() {
 
   // Pricing
   const subtotal = total;
-  const discountAmount = discount || 0;
+  const discountAmount = 0; // TODO: Implement discount functionality in DbCartStore
   const shippingFee = deliveryOption === 'express' ? 149 : (subtotal > 500 ? 0 : 49);
   const tax = Math.round((subtotal - discountAmount) * 0.18); // 18% GST
   const finalTotal = subtotal - discountAmount + shippingFee + tax;
@@ -69,11 +79,17 @@ export default function CheckoutPage() {
       return;
     }
     
-    if (items.length === 0) {
+    // Fetch cart data when user is authenticated
+    fetchCart();
+  }, [user, fetchCart, router]);
+
+  // Separate effect to check for empty cart after loading
+  useEffect(() => {
+    if (!loading && items.length === 0 && user) {
       toast.error('Your cart is empty');
       router.push('/cart');
     }
-  }, [items, router, user]);
+  }, [loading, items.length, user, router]);
 
   const handleInputChange = (field: keyof ShippingAddress, value: string) => {
     setShippingAddress(prev => ({ ...prev, [field]: value }));
@@ -348,7 +364,7 @@ export default function CheckoutPage() {
                     <Checkbox
                       id="saveAddress"
                       checked={saveAddress}
-                      onCheckedChange={setSaveAddress}
+                      onCheckedChange={(checked) => setSaveAddress(checked === true)}
                     />
                     <Label htmlFor="saveAddress" className="text-sm">
                       Save this address for future orders
@@ -436,7 +452,7 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
             )}
-            {console.log("orderId", orderId)}
+            
             {/* Step 3: Payment */}
             {currentStep === 3 && orderId && (
               <PaymentGateway

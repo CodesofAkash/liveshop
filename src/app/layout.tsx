@@ -6,6 +6,11 @@ import { Toaster } from 'react-hot-toast'
 import Header from './_components/Header'
 import { CartSync } from '@/components/CartSync'
 
+// Import development optimizations in development mode
+if (process.env.NODE_ENV === 'development') {
+  import('@/lib/dev-optimizations')
+}
+
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {

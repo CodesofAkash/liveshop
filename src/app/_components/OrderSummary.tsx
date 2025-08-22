@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import Image from 'next/image';
 
 interface OrderItem {
   id: string;
@@ -47,9 +48,11 @@ export default function OrderSummary({
           {items.map((item) => (
             <div key={item.id} className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg bg-muted flex-shrink-0">
-                <img
+                <Image
                   src={(item.product.images && item.product.images[0]) || item.product.image || '/placeholder.jpg'}
                   alt={item.product.title || item.product.name || 'Product'}
+                  width={48}
+                  height={48}
                   className="w-full h-full object-cover rounded-lg"
                 />
               </div>

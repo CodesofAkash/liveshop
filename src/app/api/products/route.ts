@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { ProductStatus } from '@prisma/client'
-import { formatCurrency } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -208,7 +207,7 @@ export async function POST(request: NextRequest) {
         ...product,
         // Add computed fields for frontend
         inStock: product.inventory > 0,
-        priceFormatted: formatCurrency(product.price),
+        priceFormatted: `$${product.price.toFixed(2)}`,
         createdAgo: 'Just now'
       },
     }, { status: 201 })

@@ -3,12 +3,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle, Package, Truck, Download, Home, ShoppingBag } from 'lucide-react';
-import { toast } from 'sonner';
 
 interface OrderDetails {
   id: string;
@@ -38,10 +38,6 @@ export default function OrderSuccessPage() {
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchOrderDetails();
-  }, [params.id]);
-
   const fetchOrderDetails = useCallback(async () => {
     try {
       const response = await fetch(`/api/orders/${params.id}`);
@@ -55,11 +51,14 @@ export default function OrderSuccessPage() {
       }
     } catch (error) {
       console.error('Error fetching order:', error);
-      toast.error('Failed to load order details');
     } finally {
       setIsLoading(false);
     }
   }, [params.id]);
+
+  useEffect(() => {
+    fetchOrderDetails();
+  }, [params.id, fetchOrderDetails]);
 
   if (isLoading) {
     return (
@@ -195,10 +194,12 @@ export default function OrderSuccessPage() {
                 {order.items?.map((item) => (
                   <div key={item.id} className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-lg bg-muted flex-shrink-0">
-                      <img
+                      <Image
                         src={item.product.images?.[0] || '/placeholder.jpg'}
                         alt={item.product.title}
-                        className="w-full h-full object-cover rounded-lg"
+                        width={48}
+                        height={48}
+                        className="object-cover rounded-lg"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
