@@ -612,13 +612,19 @@ export default function CreateProductPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {formData.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                    {formData.tags.map((tag, index) => (
+                      <Badge key={`${tag}-${index}`} variant="secondary" className="flex items-center gap-1">
                         {tag}
-                        <X
-                          className="h-3 w-3 cursor-pointer hover:text-red-500"
-                          onClick={() => removeTag(tag)}
-                        />
+                        <button
+                          type="button"
+                          className="ml-1 cursor-pointer hover:text-red-500"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            removeTag(tag);
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </Badge>
                     ))}
                   </div>
@@ -645,12 +651,18 @@ export default function CreateProductPage() {
 
                   <div className="space-y-2">
                     {formData.features.map((feature, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 border rounded">
+                      <div key={`feature-${index}`} className="flex items-center justify-between p-2 border rounded">
                         <span>{feature}</span>
-                        <X
-                          className="h-4 w-4 cursor-pointer hover:text-red-500"
-                          onClick={() => removeFeature(feature)}
-                        />
+                        <button
+                          type="button"
+                          className="cursor-pointer hover:text-red-500"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            removeFeature(feature);
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -683,12 +695,18 @@ export default function CreateProductPage() {
 
                   <div className="space-y-2">
                     {Object.entries(formData.specifications).map(([key, value]) => (
-                      <div key={key} className="flex items-center justify-between p-2 border rounded">
+                      <div key={`spec-${key}`} className="flex items-center justify-between p-2 border rounded">
                         <span><strong>{key}:</strong> {value}</span>
-                        <X
-                          className="h-4 w-4 cursor-pointer hover:text-red-500"
-                          onClick={() => removeSpecification(key)}
-                        />
+                        <button
+                          type="button"
+                          className="cursor-pointer hover:text-red-500"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            removeSpecification(key);
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
                     ))}
                   </div>

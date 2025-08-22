@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { useUser, SignInButton, SignUpButton, SignOutButton, UserButton } from '@clerk/nextjs'
 import { useUIStore, useLiveStore } from '@/lib/store'
 import { useDbCartStore } from '@/lib/cart-store'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -72,7 +73,14 @@ const CartSidebar = () => {
           <SheetTitle className="flex items-center justify-between">
             Shopping Cart ({itemCount})
             {itemCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearCart}>
+              <Button variant="ghost" size="sm" onClick={async () => {
+                try {
+                  await clearCart();
+                  toast.success('Cart cleared');
+                } catch {
+                  toast.error('Failed to clear cart');
+                }
+              }}>
                 Clear All
               </Button>
             )}
@@ -112,7 +120,14 @@ const CartSidebar = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            onClick={async () => {
+                              try {
+                                await updateQuantity(item.id, item.quantity - 1);
+                                toast.success('Quantity updated');
+                              } catch {
+                                toast.error('Failed to update quantity');
+                              }
+                            }}
                             disabled={item.quantity <= 1}
                           >
                             -
@@ -121,14 +136,28 @@ const CartSidebar = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            onClick={async () => {
+                              try {
+                                await updateQuantity(item.id, item.quantity + 1);
+                                toast.success('Quantity updated');
+                              } catch {
+                                toast.error('Failed to update quantity');
+                              }
+                            }}
                           >
                             +
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => removeItem(item.productId)}
+                            onClick={async () => {
+                              try {
+                                await removeItem(item.id);
+                                toast.success('Item removed from cart');
+                              } catch {
+                                toast.error('Failed to remove item');
+                              }
+                            }}
                             className="text-red-500 hover:text-red-700 ml-auto"
                           >
                             Remove
