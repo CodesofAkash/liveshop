@@ -1,22 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
-import { createUser, CreateUserData } from '@/lib/user'
+import { createUser, getUserByClerkId, CreateUserData } from '@/lib/user'
 
-// POST /api/users - Create a new user
+// POST /api/users - Create a new user or return existing user
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await auth()
+    const body = await req.json()
+    const clerkId = body.clerkId
     
-    if (!userId) {
+    if (!clerkId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: 'Clerk ID is required' },
+        { status: 400 }
       )
     }
 
-    const body = await req.json()
+    // Check if user already exists
+    try {
+      const existingUser = await getUserByClerkId(clerkId)
+      if (existingUser) {
+        return NextResponse.json(existingUser, { status: 200 })
+      }
+    } catch {
+      // User doesn't exist, continue to create
+    }
+
     const userData: CreateUserData = {
-      clerkId: body.clerkId || userId,
+      clerkId: clerkId,
       email: body.email,
       name: body.name,
       avatar: body.avatar,

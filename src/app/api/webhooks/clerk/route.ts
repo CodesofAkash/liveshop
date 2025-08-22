@@ -33,9 +33,10 @@ export async function POST(req: NextRequest) {
         console.log('✅ Webhook signature verified')
       } catch (err) {
         console.error('Error verifying webhook:', err)
-        return new Response('Error occurred - invalid signature', {
-          status: 400,
-        })
+        return NextResponse.json(
+          { error: 'Invalid signature' },
+          { status: 400 }
+        )
       }
     } else {
       // If no webhook secret or headers, use payload directly (development mode)
