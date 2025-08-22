@@ -1,8 +1,63 @@
 // Development performance optimizations
 // This file helps improve Fast Refresh and build performance during development
 
+// Environment variable validation utility
+function validateEnvironmentVariables() {
+  const requiredVars = [
+    'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
+    'CLERK_SECRET_KEY',
+    'DATABASE_URL',
+  ]
+
+  const optionalVars = [
+    'WEBHOOK_SECRET',
+    'CLERK_WEBHOOK_SECRET',
+  ]
+
+  const missing: string[] = []
+  const present: string[] = []
+
+  requiredVars.forEach(varName => {
+    if (!process.env[varName]) {
+      missing.push(varName)
+    } else {
+      present.push(varName)
+    }
+  })
+
+  optionalVars.forEach(varName => {
+    if (process.env[varName]) {
+      present.push(varName)
+    }
+  })
+
+  return {
+    missing,
+    present,
+    isValid: missing.length === 0
+  }
+}
+
+function logEnvironmentStatus() {
+  const status = validateEnvironmentVariables()
+  
+  console.log('🔧 Environment Variables Status:')
+  console.log('✅ Present:', status.present)
+  
+  if (status.missing.length > 0) {
+    console.log('❌ Missing:', status.missing)
+  }
+  
+  if (!status.isValid) {
+    console.warn('⚠️ Some required environment variables are missing!')
+  }
+}
+
 // Reduce console noise in development
 if (process.env.NODE_ENV === 'development') {
+  // Log environment status
+  logEnvironmentStatus()
+  
   // Suppress specific warnings that aren't actionable
   const originalWarn = console.warn;
   console.warn = (...args) => {

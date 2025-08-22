@@ -9,9 +9,6 @@ import { CartSync } from '@/components/CartSync'
 // Import development optimizations in development mode
 if (process.env.NODE_ENV === 'development') {
   import('@/lib/dev-optimizations')
-  import('@/lib/env-check').then(({ logEnvironmentStatus }) => {
-    logEnvironmentStatus()
-  })
 }
 
 const inter = Inter({ subsets: ['latin'] })
