@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       },
       data: {
         status: 'CONFIRMED',
-        paymentStatus: 'COMPLETED',
+        paymentStatus: 'CONFIRMED',
         paymentId: razorpay_payment_id,
         paymentMethod: 'RAZORPAY',
         paidAt: new Date()

@@ -130,7 +130,7 @@ export default function OrderSuccessPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Payment Status</p>
                   <Badge 
-                    variant={order.paymentStatus === 'COMPLETED' ? 'default' : 'secondary'}
+                    variant={order.paymentStatus === 'CONFIRMED' ? 'default' : 'secondary'}
                     className="w-fit"
                   >
                     {order.paymentStatus}

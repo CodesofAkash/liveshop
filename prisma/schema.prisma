@@ -309,9 +309,9 @@ enum OrderStatus {
 
 enum PaymentStatus {
   PENDING
+  CONFIRMED
   PROCESSING
-  COMPLETED
-  FAILED
+  CANCELLED
   REFUNDED
 }
 

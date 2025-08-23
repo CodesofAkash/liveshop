@@ -53,7 +53,7 @@ async function handlePaymentCaptured(payment: { notes?: { orderId?: string }; id
       where: { id: orderId },
       data: {
         status: 'CONFIRMED',
-        paymentStatus: 'COMPLETED',
+        paymentStatus: 'CONFIRMED',
         paymentId: payment.id,
       }
     });
@@ -67,7 +67,7 @@ async function handlePaymentFailed(payment: { notes?: { orderId?: string }; id: 
       where: { id: orderId },
       data: {
         status: 'CANCELLED',
-        paymentStatus: 'FAILED',
+        paymentStatus: 'CANCELLED',
         paymentId: payment.id,
       }
     });
@@ -81,7 +81,7 @@ async function handleOrderPaid(order: { notes?: { orderId?: string } }) {
       where: { id: orderId },
       data: {
         status: 'CONFIRMED',
-        paymentStatus: 'COMPLETED',
+        paymentStatus: 'CONFIRMED',
       }
     });
   }
