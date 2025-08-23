@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Star, ShoppingCart, Heart, Share2, Truck, Shield, RotateCcw, Plus, Minus, ArrowLeft } from 'lucide-react';
@@ -12,6 +12,9 @@ import { useDbCartStore } from '@/lib/cart-store';
 import { useUser, SignInButton } from '@clerk/nextjs';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
+
+import WishlistButton, { WishlistTextButton } from '@/components/WishlistButton';
+
 
 interface Product {
   id: string;
@@ -50,7 +53,6 @@ export default function ProductDetailPage() {
   const [error, setError] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [isWishlisted, setIsWishlisted] = useState(false);
 
   // Mock additional images for demo
   const mockImages = [
@@ -60,36 +62,32 @@ export default function ProductDetailPage() {
   ];
 
   // Mock reviews for demo
-  const mockReviews: Review[] = [
-    {
-      id: '1',
-      rating: 5,
-      comment: 'Excellent product! Great quality and fast shipping.',
-      userName: 'John D.',
-      createdAt: '2024-01-15',
-    },
-    {
-      id: '2',
-      rating: 4,
-      comment: 'Very good value for money. Highly recommend.',
-      userName: 'Sarah M.',
-      createdAt: '2024-01-10',
-    },
-    {
-      id: '3',
-      rating: 5,
-      comment: 'Perfect! Exactly what I was looking for.',
-      userName: 'Mike R.',
-      createdAt: '2024-01-08',
-    },
-  ];
+    const mockReviews: Review[] = useMemo(() => [
+      {
+        id: '1',
+        rating: 5,
+        comment: 'Excellent product! Great quality and fast shipping.',
+        userName: 'John D.',
+        createdAt: '2024-01-15',
+      },
+      {
+        id: '2',
+        rating: 4,
+        comment: 'Very good value for money. Highly recommend.',
+        userName: 'Sarah M.',
+        createdAt: '2024-01-10',
+      },
+      {
+        id: '3',
+        rating: 5,
+        comment: 'Perfect! Exactly what I was looking for.',
+        userName: 'Mike R.',
+        createdAt: '2024-01-08',
+      },
+    ], []);
+  
 
-  useEffect(() => {
-    fetchProduct();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
-
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/products/${params.id}`);
@@ -145,7 +143,11 @@ export default function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [mockReviews, params.id]);
+
+  useEffect(() => {
+    fetchProduct();
+  }, [params.id, fetchProduct]);
 
   const handleAddToCart = async () => {
     if (!product || !user) return;
@@ -163,13 +165,6 @@ export default function ProductDetailPage() {
     if (newQuantity >= 1 && newQuantity <= (product?.inventory || 999)) {
       setQuantity(newQuantity);
     }
-  };
-
-  const toggleWishlist = () => {
-    if (!user) return;
-    
-    setIsWishlisted(!isWishlisted);
-    toast.success(isWishlisted ? 'Removed from wishlist' : 'Added to wishlist');
   };
 
   if (loading) {
@@ -376,13 +371,10 @@ export default function ProductDetailPage() {
                   </div>
                 )}
                 {user ? (
-                  <Button
-                    variant="outline"
-                    onClick={toggleWishlist}
-                    className="h-12 px-6"
-                  >
-                    <Heart className={`h-5 w-5 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
-                  </Button>
+                  <WishlistTextButton 
+                    productId={product.id} 
+                    className="h-12 px-6" 
+                  />
                 ) : (
                   <div onClick={(e) => e.stopPropagation()}>
                     <SignInButton mode="modal">

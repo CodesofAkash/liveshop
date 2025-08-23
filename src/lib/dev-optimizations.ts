@@ -41,11 +41,8 @@ function validateEnvironmentVariables() {
 function logEnvironmentStatus() {
   const status = validateEnvironmentVariables()
   
-  console.log('🔧 Environment Variables Status:')
-  console.log('✅ Present:', status.present)
   
   if (status.missing.length > 0) {
-    console.log('❌ Missing:', status.missing)
   }
   
   if (!status.isValid) {

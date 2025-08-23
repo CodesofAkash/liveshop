@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { WishlistIconButton } from '@/components/WishlistButton'
 
 // Enhanced API Functions with better error handling and fallback
 const fetchProducts = async (params: {
@@ -163,6 +164,19 @@ const ProductCard = ({ product, onClick, user }: {
     }).format(price)
   }
 
+  // Wishlist state (for demo, should be managed globally or via API)
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const handleWishlistClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsWishlisted((prev) => !prev);
+    // TODO: Add API call to add/remove from wishlist
+    addNotification({
+      type: isWishlisted ? 'info' : 'success',
+      title: isWishlisted ? 'Removed from Wishlist' : 'Added to Wishlist',
+      message: `${product.title} ${isWishlisted ? 'removed from' : 'added to'} your wishlist`,
+    });
+  };
+
   return (
     <Card 
       className="group hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
@@ -170,6 +184,7 @@ const ProductCard = ({ product, onClick, user }: {
     >
       <CardHeader className="p-0">
         <div className="relative overflow-hidden rounded-t-lg">
+          <div className="relative">
           <Image
             src={product.images?.[0] || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'}
             alt={product.title}
@@ -184,14 +199,21 @@ const ProductCard = ({ product, onClick, user }: {
             onError={(e) => {
               e.currentTarget.src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'
             }}
-          />
+          />            
+            {/* Add wishlist button to top-right corner */}
+            <WishlistIconButton 
+              productId={product.id}
+              className="absolute top-2 left-2"
+            />
+          </div>
+          
           <div className="absolute top-2 right-2">
             <Badge variant="secondary" className="bg-white/90">
               {formatPrice(product.price)}
             </Badge>
           </div>
           {product.inventory < 20 && product.inventory > 0 && (
-            <div className="absolute top-2 left-2">
+            <div className="absolute top-2 left-10">{/* shift right to avoid heart */}
               <Badge variant="destructive">Low Stock</Badge>
             </div>
           )}
