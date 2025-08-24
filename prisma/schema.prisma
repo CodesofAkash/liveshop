@@ -190,8 +190,7 @@ model Review {
   user      User   @relation(fields: [userId], references: [id], onDelete: Cascade) // ✅ Reference User.id
   
   rating    Int
-  title     String?
-  content   String
+  comment   String
   images    String[]
   
   verified  Boolean @default(false)
