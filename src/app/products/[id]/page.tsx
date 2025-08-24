@@ -19,19 +19,17 @@ import { WishlistTextButton } from '@/components/WishlistButton';
 interface Product {
   id: string;
   title: string;
+  name?: string;
   description: string;
   price: number;
-  imageUrl?: string;
-  images?: string[];
-  category: string;
-  brand?: string;
-  inStock: boolean;
   inventory: number;
-  rating?: number;
-  reviewCount?: number;
-  tags: string[];
-  specifications?: Record<string, string>;
-  sellerId?: string;
+  category: string;
+  attributes?: {
+    specifications?: Record<string, string>;
+    features?: string[];
+    [key: string]: any;
+  };
+  images?: string[];
   seller?: {
     id: string;
     name: string;
@@ -39,20 +37,29 @@ interface Product {
     avatar?: string;
     rating?: number;
     responseTime?: string;
+    createdAt?: string;
   };
+  status?: string;
+  inStock: boolean;
+  featured?: boolean;
+  slug?: string;
+  tags?: string[];
   createdAt?: string;
   updatedAt?: string;
+  brand?: string;
+  reviews?: Review[];
+  rating?: number;
+  reviewCount?: number;
 }
 
 interface Review {
   id: string;
   rating: number;
   comment: string;
-  userId: string;
   user: {
-    firstName: string;
-    lastName?: string;
-    imageUrl?: string;
+    name: string;
+    avatar: string;
+    id: string;
   };
   verified: boolean;
   createdAt: string;
@@ -114,7 +121,7 @@ export default function ProductDetailPage() {
           
           // Check if user has already reviewed this product
           if (user && data.data.reviews) {
-            const userReview = data.data.reviews.find((review: Review) => review.userId === user.id);
+            const userReview = data.data.reviews.find((review: Review) => review.user.id === user.id);
             setHasUserReviewed(!!userReview);
           }
         } else {
@@ -253,7 +260,7 @@ export default function ProductDetailPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          sellerId: product.sellerId || product.seller?.id,
+          sellerId: product.seller?.id,
           productId: product.id,
           message: contactMessage.trim(),
           subject: `Inquiry about ${product.title}`,
@@ -320,8 +327,7 @@ export default function ProductDetailPage() {
     );
   }
 
-  const productImages = product.images && product.images.length > 0 ? product.images : 
-                       product.imageUrl ? [product.imageUrl] : defaultImages;
+  const productImages = product.images && product.images.length > 0 ? product.images : defaultImages;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -622,9 +628,9 @@ export default function ProductDetailPage() {
               <Card>
                 <CardContent className="p-6">
                   <h3 className="text-lg font-semibold mb-4">Technical Specifications</h3>
-                  {product.specifications && Object.keys(product.specifications).length > 0 ? (
+                  {product.attributes?.specifications && Object.keys(product.attributes.specifications).length > 0 ? (
                     <div className="space-y-3">
-                      {Object.entries(product.specifications).map(([key, value]) => (
+                      {Object.entries(product.attributes.specifications).map(([key, value]) => (
                         <div key={key} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
                           <span className="font-medium text-gray-700">{key}:</span>
                           <span className="text-gray-600">{value}</span>
@@ -772,10 +778,10 @@ export default function ProductDetailPage() {
                         <CardContent className="p-6">
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex items-center gap-3">
-                              {review.user.imageUrl && (
+                              {review.user.avatar && (
                                 <Image
-                                  src={review.user.imageUrl}
-                                  alt={review.user.firstName}
+                                  src={review.user.avatar}
+                                  alt={review.user.name}
                                   width={32}
                                   height={32}
                                   className="rounded-full"
@@ -784,7 +790,7 @@ export default function ProductDetailPage() {
                               <div>
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="font-semibold">
-                                    {review.user.firstName} {review.user.lastName || ''}
+                                    {review.user.name}
                                   </span>
                                   <div className="flex">
                                     {[...Array(5)].map((_, i) => (

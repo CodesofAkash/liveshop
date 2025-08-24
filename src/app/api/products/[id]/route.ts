@@ -15,24 +15,41 @@ export async function GET(
   try {
     const { id } = await params;
     
-    // First get the product without seller relation to debug
+    // Fetch product with all relevant fields
     const productBasic = await prisma.product.findUnique({
       where: { id },
+      select: {
+        id: true,
+        title: true,
+        name: true,
+        description: true,
+        price: true,
+        inventory: true,
+        category: true,
+        attributes: true,
+        images: true,
+        sellerId: true,
+        status: true,
+        inStock: true,
+        featured: true,
+        slug: true,
+        tags: true,
+        createdAt: true,
+        updatedAt: true,
+        brand: true,
+      },
     })
-    
+
     if (!productBasic) {
       return NextResponse.json(
         { success: false, error: 'Product not found' },
         { status: 404 }
       )
     }
-    
-    // Try to get seller separately with better error handling
+
+    // Get seller info
     let seller = null
     try {
-      console.log('Product sellerId:', productBasic.sellerId)
-      
-      // First try by MongoDB _id (for new products)
       seller = await prisma.user.findUnique({
         where: { id: productBasic.sellerId },
         select: {
@@ -42,10 +59,7 @@ export async function GET(
           createdAt: true,
         },
       })
-      
-      // If not found, try by clerkId (for old products that have clerkId as sellerId)
       if (!seller) {
-        console.log('Seller not found by _id, trying by clerkId')
         seller = await prisma.user.findUnique({
           where: { clerkId: productBasic.sellerId },
           select: {
@@ -55,17 +69,11 @@ export async function GET(
             createdAt: true,
           },
         })
-        
-        if (seller) {
-          console.log('Found seller by clerkId - this product needs migration')
-        }
-      } else {
-        console.log('Found seller by _id - this product is correct')
       }
     } catch (sellerError) {
       console.error('Error fetching seller:', sellerError)
     }
-    
+
     // Get reviews
     const reviews = await prisma.review.findMany({
       where: { productId: id },
@@ -82,27 +90,39 @@ export async function GET(
       },
     })
 
-    const product = {
-      ...productBasic,
-      seller,
-      reviews,
-    }
-
     // Calculate average rating
-    const averageRating = product.reviews.length > 0 
-      ? product.reviews.reduce((sum: number, review: ReviewWithRating) => sum + review.rating, 0) / product.reviews.length
+    const averageRating = reviews.length > 0
+      ? reviews.reduce((sum: number, review: ReviewWithRating) => sum + review.rating, 0) / reviews.length
       : 0
 
-    const productWithRating = {
-      ...product,
+    // Compose product response
+    const product = {
+      id: productBasic.id,
+      title: productBasic.title || productBasic.name,
+      name: productBasic.name,
+      description: productBasic.description,
+      price: productBasic.price,
+      inventory: productBasic.inventory,
+      category: productBasic.category,
+      attributes: productBasic.attributes,
+      images: productBasic.images,
+      seller,
+      status: productBasic.status,
+      inStock: productBasic.inStock,
+      featured: productBasic.featured,
+      slug: productBasic.slug,
+      tags: productBasic.tags,
+      createdAt: productBasic.createdAt,
+      updatedAt: productBasic.updatedAt,
+      brand: productBasic.brand,
+      reviews,
       rating: averageRating,
-      reviewCount: product.reviews.length,
+      reviewCount: reviews.length,
     }
 
-    console.log('API: Successfully returning product data');
     return NextResponse.json({
       success: true,
-      data: productWithRating,
+      data: product,
     })
   } catch (error) {
     console.error('Error fetching product:', error)
