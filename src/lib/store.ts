@@ -14,10 +14,10 @@ export interface User {
 export interface Product {
   id: string
   title: string // ✅ Changed from 'name' to 'title' to match API
-  name?: string // ✅ Keep for backward compatibility
+  name: string // ✅ Keep for backward compatibility
   description: string
   price: number
-  images?: string[]
+  images: string[]
   category: string
   sellerId?: string
   inventory: number

@@ -29,6 +29,7 @@ import { formatPrice } from '@/lib/utils';
 interface ProductFormData {
   title: string; // ✅ Changed from 'name' to 'title' to match API
   description: string;
+  brand: string;
   price: number;
   category: string;
   images: string[]; // ✅ Changed from imageUrl to images array
@@ -70,6 +71,7 @@ export default function CreateProductPage() {
   const [formData, setFormData] = useState<ProductFormData>({
     title: '',
     description: '',
+    brand: '',
     price: 0,
     category: '',
     images: [],
@@ -346,6 +348,20 @@ export default function CreateProductPage() {
                       <p className="text-sm text-red-500 mt-1">{errors.title}</p>
                     )}
                   </div>
+
+                    <div>
+                      <Label htmlFor="brand">Brand *</Label>
+                      <Input
+                        id="brand"
+                        value={formData.brand}
+                        onChange={(e) => handleInputChange('brand', e.target.value)}
+                        placeholder="Enter brand name"
+                        className={errors.brand ? 'border-red-500' : ''}
+                      />
+                      {errors.brand && (
+                        <p className="text-sm text-red-500 mt-1">{errors.brand}</p>
+                      )}
+                    </div>
 
                   <div>
                     <Label htmlFor="description">Description *</Label>
@@ -780,6 +796,9 @@ export default function CreateProductPage() {
                       </div>
                     )}
                     <h3 className="font-semibold mb-1">{formData.title || 'Product Title'}</h3>
+                    {formData.brand && (
+                      <p className="text-sm text-gray-600 mb-1">Brand: <span className="font-semibold">{formData.brand}</span></p>
+                    )}
                     <p className="text-sm text-gray-600 mb-2">{formData.category || 'Category'}</p>
                     <p className="text-lg font-bold text-green-600">
                       {formatPrice(formData.price || 0)}

@@ -10,7 +10,7 @@ import { useDbCartStore } from '@/lib/cart-store'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
+
 import {
   Sheet,
   SheetContent,
@@ -36,7 +36,6 @@ import {
 } from '@/components/ui/navigation-menu'
 import {
   ShoppingCart,
-  Search,
   Menu,
   User,
   Heart,
@@ -54,12 +53,11 @@ import {
   Users
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import EnhancedSearch from './EnhancedSearch'
+import SearchSuggestions from './SearchSuggestions'
 
 // Cart Sidebar Component
 const CartSidebar = () => {
   const { items, isOpen, setCartOpen, removeItem, updateQuantity, clearCart } = useDbCartStore()
-
   const router = useRouter();
 
   // Calculate total and count from items
@@ -108,7 +106,7 @@ const CartSidebar = () => {
                     <div key={item.id} className="flex items-center space-x-4 bg-gray-50 p-3 rounded-lg">
                       <Image
                         src={item.product.images?.[0] || '/placeholder.png'}
-                        alt={item.product.title}
+                        alt={item.product.title || 'Product'}
                         width={64}
                         height={64}
                         className="w-16 h-16 object-cover rounded-md"
@@ -402,39 +400,13 @@ const MobileMenu = () => {
   )
 }
 
-// Search Bar Component
-const SearchBar = () => {
-  const [searchQuery, setSearchQuery] = useState('')
-  const router = useRouter()
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
-    }
-  }
-
-  return (
-    <form onSubmit={handleSearch} className="flex-1 max-w-2xl mx-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <Input
-          type="search"
-          placeholder="Search products, brands, categories..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 pr-4 w-full"
-        />
-      </div>
-    </form>
-  )
-}
-
 // Main Header Component
 export default function Header() {
   const { items, toggleCart } = useDbCartStore()
   const { activeSessions } = useLiveStore()
   const [isScrolled, setIsScrolled] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const router = useRouter()
 
   // Calculate item count from items
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
@@ -447,6 +419,13 @@ export default function Header() {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // Handle search
+  const handleSearch = (query: string) => {
+    if (query.trim()) {
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+    }
+  }
 
   return (
     <>
@@ -490,8 +469,13 @@ export default function Header() {
 
             {/* Search Bar */}
             <div className="hidden md:flex flex-1 max-w-2xl mx-8">
-              <EnhancedSearch placeholder="Search products, brands, categories..." className="max-w-md" />
-              {/* <SearchBar /> */}
+              <SearchSuggestions
+                value={searchQuery}
+                onChange={setSearchQuery}
+                onSearch={handleSearch}
+                placeholder="Search products, brands, categories..."
+                className="w-full max-w-md"
+              />
             </div>
 
             {/* Right Section */}
@@ -517,7 +501,13 @@ export default function Header() {
 
           {/* Mobile Search */}
           <div className="md:hidden pb-4">
-            <SearchBar />
+            <SearchSuggestions
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onSearch={handleSearch}
+              placeholder="Search products..."
+              className="w-full"
+            />
           </div>
         </div>
 

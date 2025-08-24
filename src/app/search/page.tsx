@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Search, Filter, Grid, List, Star, Heart, ShoppingCart, SlidersHorizontal, X, ChevronDown } from 'lucide-react';
+import { Search, Filter, Grid, List, Star, Heart, ShoppingCart, SlidersHorizontal, X, ChevronDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -17,19 +17,21 @@ import { useCartStore } from '@/lib/store';
 import { useWishlist } from '@/hooks/useWishlist';
 import { toast } from 'sonner';
 
-interface Product {
+// Consistent product interface
+interface SearchProduct {
   id: string;
   name: string;
+  title?: string; // For backwards compatibility
   description: string;
   price: number;
-  originalPrice?: number;
   images: string[];
+  category: string;
+  brand?: string;
+  inventory: number;
   rating: number;
   reviewCount: number;
-  brand: string;
-  category: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK';
-  stock: number;
+  createdAt?: Date;
+  status?: string;
   tags?: string[];
 }
 
@@ -42,7 +44,14 @@ interface SearchFilters {
   sortBy: 'relevance' | 'price-low' | 'price-high' | 'rating' | 'newest';
 }
 
-const CATEGORIES = [
+interface FilterOptions {
+  categories: Array<{ name: string; count: number }>;
+  brands: Array<{ name: string; count: number }>;
+  priceRange: { min: number; max: number };
+  ratings: Array<{ rating: number; count: number }>;
+}
+
+const DEFAULT_CATEGORIES = [
   'All Categories',
   'Electronics',
   'Clothing',
@@ -54,7 +63,7 @@ const CATEGORIES = [
   'Toys',
 ];
 
-const BRANDS = [
+const DEFAULT_BRANDS = [
   'Apple',
   'Samsung',
   'Nike',
@@ -67,13 +76,16 @@ const BRANDS = [
   'Nikon',
 ];
 
+const DEFAULT_MAX_PRICE = 999999;
+
 export default function SearchPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { addToCart } = useCartStore();
-  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+  const { addItem } = useCartStore();
+  const { isInWishlist, toggleWishlist } = useWishlist();
 
-  const [products, setProducts] = useState<Product[]>([]);
+  // State management
+  const [products, setProducts] = useState<SearchProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -81,19 +93,29 @@ export default function SearchPage() {
   const [totalResults, setTotalResults] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    categories: [],
+    brands: [],
+    priceRange: { min: 0, max: DEFAULT_MAX_PRICE },
+    ratings: [],
+  });
 
   const [filters, setFilters] = useState<SearchFilters>({
     category: 'All Categories',
     brand: [],
-    priceRange: [0, 10000],
+    priceRange: [0, DEFAULT_MAX_PRICE],
     rating: 0,
     inStock: false,
     sortBy: 'relevance',
   });
 
-  // Search function
+  // Search function with improved error handling
   const searchProducts = async (query: string, page: number = 1) => {
-    if (!query.trim()) return;
+    if (!query.trim()) {
+      setProducts([]);
+      setTotalResults(0);
+      return;
+    }
     
     setLoading(true);
     try {
@@ -111,90 +133,101 @@ export default function SearchPage() {
       });
 
       const response = await fetch(`/api/search?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`);
+      }
+
       const data = await response.json();
 
-      if (response.ok) {
-        setProducts(data.products || []);
-        setTotalResults(data.total || 0);
-        setTotalPages(data.totalPages || 1);
-      } else {
-        throw new Error(data.error || 'Search failed');
+      // Handle both new and legacy API response formats
+      setProducts(data.products || []);
+      setTotalResults(data.pagination?.totalResults || data.total || 0);
+      setTotalPages(data.pagination?.totalPages || data.totalPages || 1);
+      
+      // Update filter options if available
+      if (data.filters) {
+        setFilterOptions(data.filters);
       }
+
+      // Show suggestions if no results
+      if (data.suggestions && data.suggestions.length > 0) {
+        console.log('Search suggestions:', data.suggestions);
+      }
+
     } catch (error) {
       console.error('Search error:', error);
-      toast.error('Failed to search products');
+      toast.error('Failed to search products. Please try again.');
       setProducts([]);
+      setTotalResults(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle search submit
+  // Handle search form submission
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      const newUrl = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+      router.push(newUrl);
       setCurrentPage(1);
       searchProducts(searchQuery.trim(), 1);
     }
   };
 
-  // Handle filter changes
+  // Update filters and trigger new search
   const updateFilters = (newFilters: Partial<SearchFilters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
+    const updatedFilters = { ...filters, ...newFilters };
+    setFilters(updatedFilters);
     setCurrentPage(1);
-  };
-
-  // Handle add to cart
-  const handleAddToCart = (product: Product) => {
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.images[0],
-      quantity: 1,
-    });
-    toast.success('Added to cart!');
-  };
-
-  // Handle wishlist toggle
-  const handleWishlistToggle = (product: Product) => {
-    if (isInWishlist(product.id)) {
-      removeFromWishlist(product.id);
-      toast.success('Removed from wishlist');
-    } else {
-      addToWishlist({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.images[0],
-        rating: product.rating,
-        originalPrice: product.originalPrice,
-      });
-      toast.success('Added to wishlist');
+    if (searchQuery) {
+      searchProducts(searchQuery, 1);
     }
   };
 
-  // Pagination
+  // Handle pagination
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     searchProducts(searchQuery, page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Clear filters
+  // Clear all filters
   const clearFilters = () => {
-    setFilters({
+    const clearedFilters: SearchFilters = {
       category: 'All Categories',
       brand: [],
       priceRange: [0, 10000],
       rating: 0,
       inStock: false,
       sortBy: 'relevance',
-    });
+    };
+    setFilters(clearedFilters);
+    if (searchQuery) {
+      searchProducts(searchQuery, 1);
+    }
   };
 
-  // Active filters count
+  // Handle add to cart with proper product structure
+  const handleAddToCart = (product: SearchProduct) => {
+    const cartProduct = {
+      id: product.id,
+      title: product.name || product.title || 'Unknown Product',
+      name: product.name || product.title || 'Unknown Product',
+      price: product.price,
+      images: product.images || [],
+      inventory: product.inventory,
+      category: product.category,
+      description: product.description,
+    };
+    
+    addItem(cartProduct);
+    toast.success('Product added to cart!');
+  };
+
+  // Count active filters
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (filters.category !== 'All Categories') count++;
@@ -206,21 +239,25 @@ export default function SearchPage() {
     return count;
   }, [filters]);
 
-  // Effect to search when filters change
-  useEffect(() => {
-    if (searchQuery) {
-      searchProducts(searchQuery, currentPage);
-    }
-  }, [filters]);
-
-  // Initial search effect
+  // Effect to search when URL changes
   useEffect(() => {
     const query = searchParams.get('q');
-    if (query) {
+    if (query && query !== searchQuery) {
       setSearchQuery(query);
-      searchProducts(query);
+      searchProducts(query, 1);
     }
   }, [searchParams]);
+
+  // Effect to search when filters change (debounced)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery) {
+        searchProducts(searchQuery, currentPage);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [filters]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -239,7 +276,8 @@ export default function SearchPage() {
                 className="pl-10 pr-4 py-3 text-lg"
               />
             </div>
-            <Button type="submit" size="lg" className="px-8">
+            <Button type="submit" size="lg" className="px-8" disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
               Search
             </Button>
           </form>
@@ -248,11 +286,20 @@ export default function SearchPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
               <p className="text-gray-600 dark:text-gray-300">
-                {loading ? 'Searching...' : `${totalResults.toLocaleString()} results found`}
-                {searchQuery && (
-                  <span className="ml-2">
-                    for "<span className="font-semibold">{searchQuery}</span>"
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Searching...
                   </span>
+                ) : (
+                  <>
+                    {totalResults.toLocaleString()} results found
+                    {searchQuery && (
+                      <span className="ml-2">
+                        for "<span className="font-semibold">{searchQuery}</span>"
+                      </span>
+                    )}
+                  </>
                 )}
               </p>
             </div>
@@ -262,20 +309,20 @@ export default function SearchPage() {
               <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded ${
+                  className={`p-2 rounded transition-colors ${
                     viewMode === 'grid'
                       ? 'bg-white dark:bg-gray-600 text-purple-600 dark:text-purple-400 shadow-sm'
-                      : 'text-gray-500 dark:text-gray-400'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                   }`}
                 >
                   <Grid className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 rounded ${
+                  className={`p-2 rounded transition-colors ${
                     viewMode === 'list'
                       ? 'bg-white dark:bg-gray-600 text-purple-600 dark:text-purple-400 shadow-sm'
-                      : 'text-gray-500 dark:text-gray-400'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                   }`}
                 >
                   <List className="w-4 h-4" />
@@ -297,7 +344,7 @@ export default function SearchPage() {
                 )}
               </Button>
 
-              {/* Sort By */}
+              {/* Sort Dropdown */}
               <Select
                 value={filters.sortBy}
                 onValueChange={(value) => updateFilters({ sortBy: value as SearchFilters['sortBy'] })}
@@ -361,7 +408,7 @@ export default function SearchPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {CATEGORIES.map((category) => (
+                          {(filterOptions.categories.length > 0 ? filterOptions.categories.map(cat => cat.name) : DEFAULT_CATEGORIES).map((category) => (
                             <SelectItem key={category} value={category}>
                               {category}
                             </SelectItem>
@@ -374,21 +421,24 @@ export default function SearchPage() {
                     <div>
                       <label className="font-medium text-sm mb-3 block">Brand</label>
                       <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {BRANDS.map((brand) => (
-                          <div key={brand} className="flex items-center space-x-2">
+                        {(filterOptions.brands.length > 0 ? filterOptions.brands : DEFAULT_BRANDS.map(brand => ({ name: brand, count: 0 }))).map((brand) => (
+                          <div key={brand.name} className="flex items-center space-x-2">
                             <Checkbox
-                              id={brand}
-                              checked={filters.brand.includes(brand)}
+                              id={brand.name}
+                              checked={filters.brand.includes(brand.name)}
                               onCheckedChange={(checked) => {
                                 if (checked) {
-                                  updateFilters({ brand: [...filters.brand, brand] });
+                                  updateFilters({ brand: [...filters.brand, brand.name] });
                                 } else {
-                                  updateFilters({ brand: filters.brand.filter(b => b !== brand) });
+                                  updateFilters({ brand: filters.brand.filter(b => b !== brand.name) });
                                 }
                               }}
                             />
-                            <label htmlFor={brand} className="text-sm">
-                              {brand}
+                            <label htmlFor={brand.name} className="text-sm flex items-center gap-2">
+                              {brand.name}
+                              {typeof brand === 'object' && brand.count > 0 && (
+                                <span className="text-xs text-gray-500">({brand.count})</span>
+                              )}
                             </label>
                           </div>
                         ))}
@@ -403,8 +453,8 @@ export default function SearchPage() {
                       <Slider
                         value={filters.priceRange}
                         onValueChange={(value) => updateFilters({ priceRange: value as [number, number] })}
-                        max={10000}
-                        min={0}
+                        max={filterOptions.priceRange.max || DEFAULT_MAX_PRICE}
+                        min={filterOptions.priceRange.min || 0}
                         step={100}
                         className="w-full"
                       />
@@ -484,119 +534,114 @@ export default function SearchPage() {
                     ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
                     : 'grid-cols-1'
                 }`}>
-                  {products.map((product) => (
-                    <Card key={product.id} className="group hover:shadow-lg transition-shadow">
-                      <CardContent className={`p-0 ${viewMode === 'list' ? 'flex' : ''}`}>
-                        {/* Product Image */}
-                        <div className={`relative ${
-                          viewMode === 'list' ? 'w-48 flex-shrink-0' : 'w-full'
-                        }`}>
-                          <Link href={`/products/${product.id}`}>
-                            <div className="aspect-square relative overflow-hidden rounded-t-lg">
-                              <Image
-                                src={product.images[0] || '/placeholder-product.jpg'}
-                                alt={product.name}
-                                fill
-                                className="object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                              {product.originalPrice && product.originalPrice > product.price && (
-                                <Badge className="absolute top-2 left-2 bg-red-500">
-                                  {Math.round((1 - product.price / product.originalPrice) * 100)}% OFF
+                  {products.map((product) => {
+                    const productName = product.name || product.title || 'Unknown Product';
+                    const productImage = product.images?.[0] || '/placeholder-product.jpg';
+                    
+                    return (
+                      <Card key={product.id} className="group hover:shadow-lg transition-shadow">
+                        <CardContent className={`p-0 ${viewMode === 'list' ? 'flex' : ''}`}>
+                          {/* Product Image */}
+                          <div className={`relative ${
+                            viewMode === 'list' ? 'w-48 flex-shrink-0' : 'w-full'
+                          }`}>
+                            <Link href={`/products/${product.id}`}>
+                              <div className="aspect-square relative overflow-hidden rounded-t-lg">
+                                <Image
+                                  src={productImage}
+                                  alt={productName}
+                                  fill
+                                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              </div>
+                            </Link>
+                            
+                            {/* Wishlist Button */}
+                            <button
+                              onClick={() => toggleWishlist(product.id)}
+                              className={`absolute top-2 right-2 p-2 rounded-full transition-colors ${
+                                isInWishlist(product.id)
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-white/80 text-gray-600 hover:bg-red-500 hover:text-white'
+                              }`}
+                            >
+                              <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
+                            </button>
+                          </div>
+
+                          {/* Product Info */}
+                          <div className={`p-4 ${viewMode === 'list' ? 'flex-1' : ''}`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <Link href={`/products/${product.id}`}>
+                                  <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-2">
+                                    {productName}
+                                  </h3>
+                                </Link>
+                                {product.brand && (
+                                  <p className="text-sm text-gray-500 mt-1">{product.brand}</p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Rating */}
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="flex items-center">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`w-4 h-4 ${
+                                      i < Math.floor(product.rating)
+                                        ? 'fill-yellow-400 text-yellow-400'
+                                        : 'text-gray-300'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-sm text-gray-600 dark:text-gray-300">
+                                {product.rating?.toFixed(1) || '0.0'} ({product.reviewCount || 0})
+                              </span>
+                            </div>
+
+                            {/* Price */}
+                            <div className="flex items-center gap-2 mb-4">
+                              <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                                ₹{product.price.toLocaleString()}
+                              </span>
+                            </div>
+
+                            {/* Stock Status */}
+                            <div className="mb-4">
+                              {product.inventory > 0 ? (
+                                <Badge variant="outline" className="text-green-600 border-green-200">
+                                  In Stock ({product.inventory} left)
                                 </Badge>
+                              ) : (
+                                <Badge variant="destructive">Out of Stock</Badge>
                               )}
                             </div>
-                          </Link>
-                          
-                          {/* Wishlist Button */}
-                          <button
-                            onClick={() => handleWishlistToggle(product)}
-                            className={`absolute top-2 right-2 p-2 rounded-full transition-colors ${
-                              isInWishlist(product.id)
-                                ? 'bg-red-500 text-white'
-                                : 'bg-white/80 text-gray-600 hover:bg-red-500 hover:text-white'
-                            }`}
-                          >
-                            <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
-                          </button>
-                        </div>
 
-                        {/* Product Info */}
-                        <div className={`p-4 ${viewMode === 'list' ? 'flex-1' : ''}`}>
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <Link href={`/products/${product.id}`}>
-                                <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors line-clamp-2">
-                                  {product.name}
-                                </h3>
-                              </Link>
-                              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                {product.brand}
+                            {/* Description (List view only) */}
+                            {viewMode === 'list' && product.description && (
+                              <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
+                                {product.description}
                               </p>
-                            </div>
-                          </div>
-
-                          {/* Rating */}
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="flex items-center">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`w-4 h-4 ${
-                                    i < Math.floor(product.rating)
-                                      ? 'fill-yellow-400 text-yellow-400'
-                                      : 'text-gray-300'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                            <span className="text-sm text-gray-600 dark:text-gray-300">
-                              {product.rating} ({product.reviewCount})
-                            </span>
-                          </div>
-
-                          {/* Price */}
-                          <div className="flex items-center gap-2 mb-4">
-                            <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                              ₹{product.price.toLocaleString()}
-                            </span>
-                            {product.originalPrice && product.originalPrice > product.price && (
-                              <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
-                                ₹{product.originalPrice.toLocaleString()}
-                              </span>
                             )}
+
+                            {/* Add to Cart Button */}
+                            <Button
+                              onClick={() => handleAddToCart(product)}
+                              disabled={product.inventory === 0}
+                              className="w-full"
+                            >
+                              <ShoppingCart className="w-4 h-4 mr-2" />
+                              {product.inventory > 0 ? 'Add to Cart' : 'Out of Stock'}
+                            </Button>
                           </div>
-
-                          {/* Stock Status */}
-                          <div className="mb-4">
-                            {product.stock > 0 ? (
-                              <Badge variant="outline" className="text-green-600 border-green-200">
-                                In Stock ({product.stock} left)
-                              </Badge>
-                            ) : (
-                              <Badge variant="destructive">Out of Stock</Badge>
-                            )}
-                          </div>
-
-                          {/* Description (List view only) */}
-                          {viewMode === 'list' && (
-                            <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-2">
-                              {product.description}
-                            </p>
-                          )}
-
-                          {/* Add to Cart Button */}
-                          <Button
-                            onClick={() => handleAddToCart(product)}
-                            disabled={product.stock === 0}
-                            className="w-full"
-                          >
-                            <ShoppingCart className="w-4 h-4 mr-2" />
-                            {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
 
                 {/* Pagination */}
@@ -605,7 +650,7 @@ export default function SearchPage() {
                     <Button
                       variant="outline"
                       onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
+                      disabled={currentPage === 1 || loading}
                     >
                       Previous
                     </Button>
@@ -629,6 +674,7 @@ export default function SearchPage() {
                             variant={currentPage === pageNum ? "default" : "outline"}
                             size="sm"
                             onClick={() => handlePageChange(pageNum)}
+                            disabled={loading}
                           >
                             {pageNum}
                           </Button>
@@ -639,7 +685,7 @@ export default function SearchPage() {
                     <Button
                       variant="outline"
                       onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
+                      disabled={currentPage === totalPages || loading}
                     >
                       Next
                     </Button>

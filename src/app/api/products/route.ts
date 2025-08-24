@@ -147,10 +147,9 @@ export async function POST(request: NextRequest) {
     const parsedSizes = Array.isArray(sizes) ? sizes : []
     const parsedMaterials = Array.isArray(materials) ? materials : []
 
-    // Build comprehensive attributes object
+    // Build comprehensive attributes object (brand will be top-level)
     const productAttributes = {
       ...(attributes || {}),
-      ...(brand && { brand }),
       ...(specifications && { specifications }),
       ...(dimensions && { dimensions }),
       ...(weight && { weight: parseFloat(weight) || null }),
@@ -170,7 +169,7 @@ export async function POST(request: NextRequest) {
       willUseAsSellerId: user.id
     })
 
-    // Create product with all fields
+    // Create product with all fields (brand as top-level)
     const product = await prisma.product.create({
       data: {
         title: productTitle.trim(),
@@ -181,6 +180,7 @@ export async function POST(request: NextRequest) {
         inventory: parsedInventory,
         attributes: productAttributes,
         tags: parsedTags,
+        brand: brand ? brand.trim() : '',
         sellerId: user.id, // ✅ Use user's MongoDB ObjectId instead of clerkId
         status: productStatus,
         slug: productSlug, // Add the generated slug

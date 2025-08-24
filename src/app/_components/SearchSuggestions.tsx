@@ -32,6 +32,15 @@ const POPULAR_SEARCHES = [
   'Gaming Mouse',
 ];
 
+// fixed rendering order for groups
+const GROUP_ORDER: SearchSuggestion['type'][] = [
+  'product',
+  'brand',
+  'category',
+  'recent',
+  'trending',
+];
+
 export default function SearchSuggestions({
   value,
   onChange,
@@ -43,14 +52,15 @@ export default function SearchSuggestions({
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Debounce search query to avoid too many API calls
+  const suggestionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
   const debouncedQuery = useDebounce(value, 300);
 
-  // Load recent searches from localStorage
+  // Load recent searches
   useEffect(() => {
     const saved = localStorage.getItem('recent-searches');
     if (saved) {
@@ -62,32 +72,18 @@ export default function SearchSuggestions({
     }
   }, []);
 
-  // Save search to recent searches
   const saveRecentSearch = (query: string) => {
     if (!query.trim()) return;
-    
-    const updated = [
-      query.trim(),
-      ...recentSearches.filter(s => s !== query.trim())
-    ].slice(0, 10); // Keep only 10 recent searches
-
+    const updated = [query.trim(), ...recentSearches.filter(s => s !== query.trim())].slice(0, 10);
     setRecentSearches(updated);
     localStorage.setItem('recent-searches', JSON.stringify(updated));
   };
 
-  // Clear recent searches
-  const clearRecentSearches = () => {
-    setRecentSearches([]);
-    localStorage.removeItem('recent-searches');
-  };
-
-  // Fetch search suggestions
   const fetchSuggestions = async (query: string) => {
     if (!query.trim()) {
       setSuggestions([]);
       return;
     }
-
     setLoading(true);
     try {
       const response = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`);
@@ -103,35 +99,31 @@ export default function SearchSuggestions({
     }
   };
 
-  // Handle debounced search
   useEffect(() => {
     if (debouncedQuery && isOpen) {
       fetchSuggestions(debouncedQuery);
     }
   }, [debouncedQuery, isOpen]);
 
-  // Handle input focus
   const handleFocus = () => {
     setIsOpen(true);
+    setHighlightedIndex(-1);
+
     if (!value.trim()) {
-      // Show recent searches and popular searches when no query
       const recentSuggestions: SearchSuggestion[] = recentSearches.map((search, index) => ({
         id: `recent-${index}`,
         text: search,
         type: 'recent',
       }));
-
       const popularSuggestions: SearchSuggestion[] = POPULAR_SEARCHES.map((search, index) => ({
         id: `popular-${index}`,
         text: search,
         type: 'trending',
       }));
-
       setSuggestions([...recentSuggestions, ...popularSuggestions]);
     }
   };
 
-  // Handle suggestion click
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
     onChange(suggestion.text);
     saveRecentSearch(suggestion.text);
@@ -140,7 +132,6 @@ export default function SearchSuggestions({
     inputRef.current?.blur();
   };
 
-  // Handle search submit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (value.trim()) {
@@ -151,45 +142,74 @@ export default function SearchSuggestions({
     }
   };
 
-  // Handle click outside
+  // Click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Get icon for suggestion type
   const getSuggestionIcon = (type: SearchSuggestion['type']) => {
     switch (type) {
-      case 'recent':
-        return <Clock className="w-4 h-4 text-gray-400" />;
-      case 'trending':
-        return <TrendingUp className="w-4 h-4 text-green-500" />;
-      default:
-        return <Search className="w-4 h-4 text-gray-400" />;
+      case 'recent': return <Clock className="w-4 h-4 text-gray-400" />;
+      case 'trending': return <TrendingUp className="w-4 h-4 text-green-500" />;
+      default: return <Search className="w-4 h-4 text-gray-400" />;
     }
   };
 
-  // Group suggestions by type
+  // Group suggestions
   const groupedSuggestions = suggestions.reduce((groups, suggestion) => {
-    const type = suggestion.type;
-    if (!groups[type]) {
-      groups[type] = [];
-    }
-    groups[type].push(suggestion);
+    if (!groups[suggestion.type]) groups[suggestion.type] = [];
+    groups[suggestion.type].push(suggestion);
     return groups;
   }, {} as Record<string, SearchSuggestion[]>);
 
+  // Flattened list for keyboard nav
+  const flatSuggestions: SearchSuggestion[] = GROUP_ORDER
+    .flatMap(type => groupedSuggestions[type] || []);
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev + 1) % flatSuggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev - 1 + flatSuggestions.length) % flatSuggestions.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && flatSuggestions[highlightedIndex]) {
+        handleSuggestionClick(flatSuggestions[highlightedIndex]);
+      } else if (value.trim()) {
+        handleSubmit(e);
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+      setHighlightedIndex(-1);
+    }
+  };
+
+  // Scroll highlighted item into view
+  useEffect(() => {
+    if (highlightedIndex >= 0 && suggestionRefs.current[highlightedIndex]) {
+      suggestionRefs.current[highlightedIndex]?.scrollIntoView({
+        block: 'nearest',
+        behavior: 'smooth',
+      });
+    }
+  }, [highlightedIndex]);
+
   return (
     <div ref={containerRef} className={`relative w-full ${className}`}>
-      {/* Search Input */}
+      {/* Input */}
       <form onSubmit={handleSubmit} className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
         <Input
           ref={inputRef}
           type="text"
@@ -197,20 +217,21 @@ export default function SearchSuggestions({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={handleFocus}
+          onKeyDown={handleKeyDown}
           className="pl-10 pr-12 py-3 text-lg"
         />
         {value && (
           <button
             type="button"
             onClick={() => onChange('')}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
             <X className="w-5 h-5" />
           </button>
         )}
       </form>
 
-      {/* Suggestions Dropdown */}
+      {/* Dropdown */}
       {isOpen && (
         <Card className="absolute top-full left-0 right-0 z-50 mt-2 max-h-96 overflow-hidden">
           <CardContent className="p-0">
@@ -219,135 +240,44 @@ export default function SearchSuggestions({
                 <div className="animate-spin w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full mx-auto mb-2"></div>
                 Searching...
               </div>
-            ) : suggestions.length > 0 ? (
+            ) : flatSuggestions.length > 0 ? (
               <div className="max-h-96 overflow-y-auto">
-                {/* Recent Searches */}
-                {groupedSuggestions.recent && (
-                  <div className="p-2 border-b">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Recent Searches
-                      </h4>
-                      {recentSearches.length > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={clearRecentSearches}
-                          className="text-xs text-gray-500 hover:text-gray-700"
-                        >
-                          Clear All
-                        </Button>
-                      )}
+                {GROUP_ORDER.map((type) => {
+                  const items = groupedSuggestions[type];
+                  if (!items || items.length === 0) return null;
+                  return (
+                    <div key={type} className="border-b last:border-0">
+                      <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">
+                        {type}
+                      </div>
+                      {items.map((suggestion) => {
+                        const flatIndex = flatSuggestions.findIndex(s => s.id === suggestion.id);
+                        return (
+                          <button
+                            key={suggestion.id}
+                            ref={el => { suggestionRefs.current[flatIndex] = el; }}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className={`w-full flex items-center justify-between gap-3 p-2 text-left rounded-md transition-colors ${
+                              flatIndex === highlightedIndex
+                                ? 'bg-gray-100 dark:bg-gray-700'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              {getSuggestionIcon(suggestion.type)}
+                              <span className="text-sm">{suggestion.text}</span>
+                            </div>
+                            {suggestion.count && (
+                              <Badge variant="secondary" className="text-xs">
+                                {suggestion.count}
+                              </Badge>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
-                    {groupedSuggestions.recent.map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="w-full flex items-center gap-3 p-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
-                      >
-                        {getSuggestionIcon(suggestion.type)}
-                        <span className="text-sm">{suggestion.text}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Trending/Popular Searches */}
-                {groupedSuggestions.trending && (
-                  <div className="p-2 border-b">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Trending Searches
-                    </h4>
-                    {groupedSuggestions.trending.map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="w-full flex items-center gap-3 p-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
-                      >
-                        {getSuggestionIcon(suggestion.type)}
-                        <span className="text-sm">{suggestion.text}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Product Suggestions */}
-                {groupedSuggestions.product && (
-                  <div className="p-2 border-b">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Products
-                    </h4>
-                    {groupedSuggestions.product.map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="w-full flex items-center justify-between gap-3 p-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          {getSuggestionIcon(suggestion.type)}
-                          <span className="text-sm">{suggestion.text}</span>
-                        </div>
-                        {suggestion.count && (
-                          <Badge variant="secondary" className="text-xs">
-                            {suggestion.count}
-                          </Badge>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Category Suggestions */}
-                {groupedSuggestions.category && (
-                  <div className="p-2 border-b">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Categories
-                    </h4>
-                    {groupedSuggestions.category.map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="w-full flex items-center justify-between gap-3 p-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          {getSuggestionIcon(suggestion.type)}
-                          <span className="text-sm">{suggestion.text}</span>
-                        </div>
-                        {suggestion.count && (
-                          <Badge variant="secondary" className="text-xs">
-                            {suggestion.count} products
-                          </Badge>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Brand Suggestions */}
-                {groupedSuggestions.brand && (
-                  <div className="p-2">
-                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Brands
-                    </h4>
-                    {groupedSuggestions.brand.map((suggestion) => (
-                      <button
-                        key={suggestion.id}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="w-full flex items-center justify-between gap-3 p-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          {getSuggestionIcon(suggestion.type)}
-                          <span className="text-sm">{suggestion.text}</span>
-                        </div>
-                        {suggestion.count && (
-                          <Badge variant="secondary" className="text-xs">
-                            {suggestion.count} products
-                          </Badge>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  );
+                })}
               </div>
             ) : value.trim() ? (
               <div className="p-4 text-center text-gray-500">
@@ -356,7 +286,9 @@ export default function SearchSuggestions({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleSuggestionClick({ id: 'search', text: value, type: 'product' })}
+                  onClick={() =>
+                    handleSuggestionClick({ id: 'search', text: value, type: 'product' })
+                  }
                   className="mt-2"
                 >
                   Search anyway

@@ -31,6 +31,7 @@ interface WishlistItem {
   id: string;
   productId: string;
   title: string;
+  name?: string;
   price: number;
   originalPrice?: number;
   images?: string[];
@@ -124,6 +125,7 @@ export default function WishlistPage() {
       const product = {
         id: item.productId,
         title: item.title,
+        name: item.name ?? "",
         description: '', // Default empty description
         price: item.price,
         images: item.images || [],
