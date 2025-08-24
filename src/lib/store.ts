@@ -15,6 +15,7 @@ export interface Product {
   id: string
   title: string // ✅ Changed from 'name' to 'title' to match API
   name: string // ✅ Keep for backward compatibility
+  brand: string
   description: string
   price: number
   images: string[]
@@ -22,7 +23,9 @@ export interface Product {
   sellerId?: string
   inventory: number
   rating?: number
+  reviewCount?: number
   createdAt?: Date
+  updatedAt?: Date
 }
 
 export interface CartItem {

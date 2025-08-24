@@ -185,35 +185,30 @@ const ProductCard = ({ product, onClick, user }: {
       <CardHeader className="p-0">
         <div className="relative overflow-hidden rounded-t-lg">
           <div className="relative">
-          <Image
-            src={product.images?.[0] || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'}
-            alt={product.title}
-            width={300}
-            height={192}
-            className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-            style={{
-              width: '100%',
-              height: 'auto',
-              aspectRatio: '300/192'
-            }}
-            onError={(e) => {
-              e.currentTarget.src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'
-            }}
-          />            
-            {/* Add wishlist button to top-right corner */}
+            <Image
+              src={product.images?.[0] || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'}
+              alt={product.title}
+              width={300}
+              height={192}
+              className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+              style={{ width: '100%', height: 'auto', aspectRatio: '300/192' }}
+              onError={(e) => {
+                e.currentTarget.src = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=300&fit=crop'
+              }}
+            />
+            {/* Add wishlist button to top-left corner */}
             <WishlistIconButton 
               productId={product.id}
               className="absolute top-2 left-2"
             />
           </div>
-          
           <div className="absolute top-2 right-2">
             <Badge variant="secondary" className="bg-white/90">
               {formatPrice(product.price)}
             </Badge>
           </div>
           {product.inventory < 20 && product.inventory > 0 && (
-            <div className="absolute top-2 left-10">{/* shift right to avoid heart */}
+            <div className="absolute top-2 left-10">
               <Badge variant="destructive">Low Stock</Badge>
             </div>
           )}
@@ -224,55 +219,75 @@ const ProductCard = ({ product, onClick, user }: {
           )}
         </div>
       </CardHeader>
-      
       <CardContent className="p-4">
+        {/* Brand name */}
+        {product.brand && (
+          <div className="text-xs text-gray-500 mb-1 font-semibold uppercase tracking-wide">
+            {product.brand}
+          </div>
+        )}
         <CardTitle className="text-lg font-semibold mb-2 line-clamp-1">
           {product.title}
         </CardTitle>
         <p className="text-sm text-gray-600 mb-3 line-clamp-2">
           {product.description}
         </p>
-        
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-1">
-            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-medium">
-              {product.rating ? product.rating.toFixed(1) : 'New'}
-            </span>
+             <div className="flex items-center space-x-1">
+               {/* Always show 5 stars, color up to rating value */}
+               {[1,2,3,4,5].map((star) => (
+                 <Star
+                   key={star}
+                   className={`h-4 w-4 ${product.rating && star <= Math.round(product.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                 />
+               ))}
+               <span className="text-sm font-medium ml-1">
+                 {product.rating ? product.rating.toFixed(1) : '0'}
+               </span>
+               {/* Show review count in brackets */}
+               {typeof product.reviewCount === 'number' && (
+                 <span className="text-xs text-gray-500 ml-1">({product.reviewCount})</span>
+               )}
           </div>
           <Badge variant="outline">{product.category}</Badge>
         </div>
-        
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center justify-between text-sm text-gray-500 mb-1">
           <span>{product.inventory} in stock</span>
+          {/* Date of creation or update */}
+          <span>
+            {product.updatedAt
+              ? `Updated ${new Date(product.updatedAt).toLocaleDateString()}`
+              : product.createdAt
+                ? `Added ${new Date(product.createdAt).toLocaleDateString()}`
+                : ''}
+          </span>
         </div>
       </CardContent>
-      
       <CardFooter className="p-4 pt-0 flex justify-center">
         {user ? (
           <Button 
-        onClick={handleAddToCart}
-        disabled={product.inventory === 0 || isAdding}
-        className="w-full group-hover:bg-primary/90 max-w-xs"
+            onClick={handleAddToCart}
+            disabled={product.inventory === 0 || isAdding}
+            className="w-full group-hover:bg-primary/90 max-w-xs"
           >
-        {isAdding ? (
-          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-        ) : (
-          <ShoppingCart className="h-4 w-4 mr-2" />
-        )}
-        {product.inventory === 0 ? 'Out of Stock' : 'Add to Cart'}
+            {isAdding ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <ShoppingCart className="h-4 w-4 mr-2" />
+            )}
+            {product.inventory === 0 ? 'Out of Stock' : 'Add to Cart'}
           </Button>
         ) : (
           <div onClick={(e) => e.stopPropagation()} className="w-full flex justify-center">
-        <SignInButton mode="modal">
-          <Button 
-            disabled={product.inventory === 0}
-            className="w-full group-hover:bg-primary/90 max-w-xs"
-          >
-            <ShoppingCart className="h-4 w-4 mr-2" />
-            {product.inventory === 0 ? 'Out of Stock' : 'Add to Cart'}
-          </Button>
-        </SignInButton>
+            <SignInButton mode="modal">
+              <Button 
+                disabled={product.inventory === 0}
+                className="w-full group-hover:bg-primary/90 max-w-xs"
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                {product.inventory === 0 ? 'Out of Stock' : 'Add to Cart'}
+              </Button>
+            </SignInButton>
           </div>
         )}
       </CardFooter>
