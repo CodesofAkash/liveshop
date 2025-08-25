@@ -194,7 +194,27 @@ const CartSidebar = () => {
 // Navigation Links Component
 const NavigationLinks = ({ mobile = false }: { mobile?: boolean }) => {
   const className = mobile ? "flex flex-col space-y-4" : ""
-  
+  const [categories, setCategories] = useState<{ name: string; count: number }[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      setLoadingCategories(true);
+      try {
+        const res = await fetch('/api/categories');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setCategories(data.data);
+        }
+      } catch {
+        setCategories([]);
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+    fetchCategories();
+  }, []);
+
   return (
     <div className={className}>
       <NavigationMenu>
@@ -204,22 +224,22 @@ const NavigationLinks = ({ mobile = false }: { mobile?: boolean }) => {
             <NavigationMenuContent>
               <div className="w-[400px] p-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <Link href="/categories/electronics" className="block p-3 rounded-lg hover:bg-gray-50">
-                    <div className="font-medium">Electronics</div>
-                    <div className="text-sm text-gray-500">Phones, Laptops, Gadgets</div>
-                  </Link>
-                  <Link href="/categories/fashion" className="block p-3 rounded-lg hover:bg-gray-50">
-                    <div className="font-medium">Fashion</div>
-                    <div className="text-sm text-gray-500">Clothing, Shoes, Accessories</div>
-                  </Link>
-                  <Link href="/categories/home" className="block p-3 rounded-lg hover:bg-gray-50">
-                    <div className="font-medium">Home & Garden</div>
-                    <div className="text-sm text-gray-500">Furniture, Decor, Tools</div>
-                  </Link>
-                  <Link href="/categories/sports" className="block p-3 rounded-lg hover:bg-gray-50">
-                    <div className="font-medium">Sports</div>
-                    <div className="text-sm text-gray-500">Fitness, Outdoor, Games</div>
-                  </Link>
+                  {loadingCategories ? (
+                    <div className="col-span-2 text-center text-gray-400">Loading...</div>
+                  ) : categories.length === 0 ? (
+                    <div className="col-span-2 text-center text-gray-400">No categories found</div>
+                  ) : (
+                    categories.map((cat) => (
+                      <Link
+                        key={cat.name}
+                        href={`/categories/${encodeURIComponent(cat.name)}`}
+                        className="block p-3 rounded-lg hover:bg-gray-50"
+                      >
+                        <div className="font-medium">{cat.name}</div>
+                        <div className="text-sm text-gray-500">{cat.count} products</div>
+                      </Link>
+                    ))
+                  )}
                 </div>
               </div>
             </NavigationMenuContent>

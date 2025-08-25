@@ -334,7 +334,7 @@ export default function ProductDetailPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
-          <button onClick={() => router.push('/')} className="hover:text-gray-800">
+          <button onClick={() => router.push('/')} className="hover:text-gray-800 cursor-pointer">
             Home
           </button>
           {product.category && (
@@ -342,7 +342,7 @@ export default function ProductDetailPage() {
               <span>/</span>
               <button 
                 onClick={() => router.push(`/categories/${encodeURIComponent(product.category)}`)} 
-                className="hover:text-gray-800"
+                className="hover:text-gray-800 cursor-pointer"
               >
                 {product.category}
               </button>

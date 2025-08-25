@@ -18,13 +18,14 @@ import { useUser, SignInButton } from '@clerk/nextjs';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
 import { WishlistTextButton } from '@/components/WishlistButton';
+import Link from 'next/link';
 
 interface Product {
   id: string;
   title: string;
   description: string;
   price: number;
-  imageUrl?: string;
+  images: string[];
   category: string;
   brand?: string;
   inStock: boolean;
@@ -192,130 +193,161 @@ export default function CategoryPage() {
   // Render product card
   const renderProductCard = (product: Product) => {
     const isListView = viewMode === 'list';
-    
     return (
-      <Card 
+      <Card
         key={product.id}
-        className={`group cursor-pointer hover:shadow-lg transition-all duration-300 ${
-          isListView ? 'flex-row flex' : ''
-        }`}
-        onClick={() => router.push(`/products/${product.id}`)}
+        className={`group cursor-pointer hover:shadow-lg transition-all duration-300 rounded-xl bg-white flex ${
+          isListView ? "flex-row items-center" : "flex-col"
+        } overflow-hidden relative`}
       >
-        <div className={`relative bg-gray-50 overflow-hidden ${
-          isListView ? 'w-48 min-w-48' : 'aspect-square'
-        } rounded-t-lg ${isListView ? 'rounded-l-lg rounded-tr-none' : ''}`}>
-          <Image
-            src={product.imageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600'}
-            alt={product.title}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-          
-          {!product.inStock && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-              <Badge variant="destructive">Out of Stock</Badge>
-            </div>
-          )}
-          
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            {user ? (
-              <WishlistTextButton 
-                productId={product.id} 
-                className="bg-white/80 backdrop-blur-sm"
-              />
-            ) : (
-              <SignInButton mode="modal">
-                <Button size="sm" variant="secondary" className="bg-white/80 backdrop-blur-sm">
-                  <Heart className="h-4 w-4" />
-                </Button>
-              </SignInButton>
+        {/* Wishlist Button in List View */}
+        {isListView && (
+          <div className="absolute top-4 right-4 z-10">
+            <WishlistTextButton
+              productId={product.id}
+              className="bg-white/80 backdrop-blur-sm shadow"
+            />
+          </div>
+        )}
+        {/* IMAGE SECTION */}
+        <div
+          className={`relative bg-gray-50 ${
+            isListView ? "w-48 min-w-48 h-48 flex items-center justify-center ml-8" : "w-full aspect-[4/3]"
+          } overflow-hidden`}
+        >
+          <Link href={`/products/${product.id}`} className="block w-full h-full">
+            <Image
+              src={product.images?.[0] || "/api/placeholder/300/300"}
+              alt={product.title}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+              style={isListView ? { objectPosition: 'center' } : {}}
+            />
+            {product.inventory <= 0 && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                <Badge variant="secondary">Out of Stock</Badge>
+              </div>
             )}
-          </div>
+            {/* Wishlist Button in Grid View */}
+            {!isListView && (
+              <WishlistTextButton
+                productId={product.id}
+                className="bg-white/80 absolute top-2 right-2 backdrop-blur-sm"
+              />
+            )}
+          </Link>
         </div>
-        
-        <CardContent className={`p-4 ${isListView ? 'flex-1' : ''}`}>
-          <div className={isListView ? 'flex justify-between h-full' : ''}>
-            <div className={isListView ? 'flex-1 mr-4' : ''}>
-              <h3 className={`font-medium text-gray-800 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors ${
-                isListView ? 'text-lg' : ''
-              }`}>
-                {product.title}
-              </h3>
-              
-              {isListView && (
-                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                  {product.description}
-                </p>
-              )}
-              
-              <div className="flex items-center gap-2 mb-3">
-                {product.rating && (
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className="text-sm text-gray-600">
-                      {product.rating.toFixed(1)}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      ({product.reviewCount || 0})
-                    </span>
-                  </div>
-                )}
-                {product.brand && (
-                  <Badge variant="outline" className="text-xs">
-                    {product.brand}
-                  </Badge>
-                )}
-              </div>
-              
-              {product.tags && product.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {product.tags.slice(0, isListView ? 5 : 3).map((tag, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <div className={`flex ${isListView ? 'flex-col justify-between items-end' : 'items-center justify-between'}`}>
-              <div className={isListView ? 'text-right mb-4' : 'w-full'}>
-                <div className={`font-bold text-green-600 ${isListView ? 'text-xl' : 'text-lg'}`}>
-                  {formatCurrency(product.price)}
-                </div>
-                {isListView && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    {product.inStock ? `${product.inventory} in stock` : 'Out of stock'}
-                  </p>
-                )}
-              </div>
-              
-              {user ? (
-                <Button
-                  size={isListView ? "default" : "sm"}
-                  onClick={(e) => handleAddToCart(product, e)}
-                  disabled={!product.inStock}
-                  className={isListView ? "w-32" : "w-full mt-2"}
-                >
-                  <ShoppingCart className="h-4 w-4 mr-2" />
-                  {isListView ? "Add to Cart" : "Add"}
-                </Button>
-              ) : (
-                <SignInButton mode="modal">
-                  <Button
-                    size={isListView ? "default" : "sm"}
-                    disabled={!product.inStock}
-                    className={isListView ? "w-32" : "w-full mt-2"}
-                  >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    {isListView ? "Add to Cart" : "Add"}
-                  </Button>
-                </SignInButton>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+
+        {/* CONTENT */}
+        <CardContent
+          className={`flex flex-col justify-between p-4 ${
+            isListView ? "flex-1" : ""
+          }`}
+        >
+    <div>
+      {/* BRAND */}
+      {product.brand && (
+        <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
+          {product.brand}
+        </p>
+      )}
+
+      {/* TITLE */}
+      <Link href={`/products/${product.id}`}>
+        <h3
+          className={`font-semibold text-gray-900 hover:text-blue-600 transition-colors line-clamp-2 ${
+            isListView ? "text-lg" : "leading-tight"
+          }`}
+        >
+          {product.title}
+        </h3>
+      </Link>
+
+      {/* DESCRIPTION (only in list view) */}
+      {isListView && (
+        <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+          {product.description}
+        </p>
+      )}
+
+      {/* RATING */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex">
+          {[...Array(5)].map((_, i) => (
+            <Star
+              key={i}
+              className={`w-3 h-3 ${
+                i < Math.floor(product.rating || 0)
+                  ? "fill-yellow-400 text-yellow-400"
+                  : "text-gray-300"
+              }`}
+            />
+          ))}
+        </div>
+        <span className="text-sm font-medium">
+          {product.rating !== undefined ? product.rating.toFixed(1) : 0}
+        </span>
+        {product.reviewCount !== undefined && (
+          <span className="text-xs text-gray-500">
+            ({product.reviewCount})
+          </span>
+        )}
+      </div>
+
+      {/* TAGS */}
+      {product.tags && product.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {product.tags
+            .slice(0, isListView ? 5 : 3)
+            .map((tag: string, index: number) => (
+              <Badge key={index} variant="secondary" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
+        </div>
+      )}
+
+      {/* DATE */}
+      <p className="text-xs text-gray-500">
+        Added{" "}
+        {new Date(product.createdAt).toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })}
+      </p>
+    </div>
+
+    {/* PRICE + BUTTONS */}
+    <div
+      className={`flex items-center justify-between mt-4 w-full ${
+        isListView ? "" : "flex-col gap-2 items-start"
+      }`}
+    >
+      <span
+        className={`font-bold text-green-600 ${
+          isListView ? "text-xl" : "text-lg"
+        }`}
+      >
+        ₹{product.price.toLocaleString("en-IN")}
+      </span>
+
+      <Button
+        size={isListView ? "default" : "sm"}
+        onClick={(e) => handleAddToCart(product, e)}
+        disabled={!product.inStock}
+        className={`${
+          isListView ? "w-32" : "w-full"
+        } flex items-center justify-center`}
+      >
+        <ShoppingCart className="h-4 w-4 mr-2" />
+        {isListView ? "Add to Cart" : "Add"}
+      </Button>
+    </div>
+  </CardContent>
+</Card>
+
     );
   };
 
