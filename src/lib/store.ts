@@ -1,20 +1,21 @@
-// src/lib/store.ts
+// src/lib/store.ts - Enhanced with Analytics
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-// Types
+// Types (keeping your existing structure)
 export interface User {
   id: string
   email: string
   name: string
   role: 'BUYER' | 'SELLER' | 'ADMIN'
   avatar?: string
+  clerkId: string // Added for Clerk integration
 }
 
 export interface Product {
   id: string
-  title: string // ✅ Changed from 'name' to 'title' to match API
-  name: string // ✅ Keep for backward compatibility
+  title: string
+  name: string
   brand: string
   description: string
   price: number
@@ -26,6 +27,9 @@ export interface Product {
   reviewCount?: number
   createdAt?: Date
   updatedAt?: Date
+  status?: 'DRAFT' | 'ACTIVE' | 'INACTIVE' | 'OUT_OF_STOCK'
+  inStock?: boolean
+  featured?: boolean
 }
 
 export interface CartItem {
@@ -39,11 +43,18 @@ export interface CartItem {
 
 export interface Order {
   id: string
-  userId: string
+  buyerId: string // Updated to match MongoDB schema
+  orderNumber?: string
   items: CartItem[]
+  subtotal: number
+  tax: number
+  shipping: number
+  discount: number
   total: number
-  status: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
+  status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED'
+  paymentStatus: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'CANCELLED' | 'REFUNDED'
   createdAt: Date
+  updatedAt: Date
 }
 
 export interface LiveSession {
@@ -56,7 +67,77 @@ export interface LiveSession {
   scheduledAt?: Date
 }
 
-// User Store
+// Analytics Types
+export interface AnalyticsData {
+  revenue: {
+    total: number
+    growth: number
+    data: Array<{ date: string; revenue: number }>
+  }
+  orders: {
+    total: number
+    growth: number
+    data: Array<{ date: string; orders: number }>
+  }
+  customers: {
+    total: number
+    returning: number
+    new: number
+  }
+  products: {
+    total: number
+    topPerforming: Array<{
+      id: string
+      title: string
+      revenue: number
+      orders: number
+      views: number
+      conversion: number
+    }>
+    categoryBreakdown: Array<{
+      category: string
+      revenue: number
+      orders: number
+      products: number
+    }>
+  }
+  traffic: {
+    totalViews: number
+    uniqueVisitors: number
+    avgSessionTime: string
+    bounceRate: number
+    data: Array<{ date: string; views: number; visitors: number }>
+  }
+  conversion: {
+    rate: number
+    data: Array<{ date: string; rate: number }>
+  }
+}
+
+export interface RealtimeAnalytics {
+  today: {
+    views: number
+    orders: number
+    revenue: number
+    activeVisitors: number
+  }
+  growth: {
+    views: number
+    orders: number
+  }
+  lastHour: {
+    views: number
+  }
+  hourlyBreakdown: Array<{
+    hour: number
+    views: number
+    orders: number
+  }>
+}
+
+export type TimeRange = '7d' | '30d' | '90d' | '1y'
+
+// Your existing stores (keeping unchanged)
 interface UserState {
   user: User | null
   isAuthenticated: boolean
@@ -79,7 +160,6 @@ export const useUserStore = create<UserState>()(
   )
 )
 
-// Products Store
 interface ProductsState {
   products: Product[]
   filteredProducts: Product[]
@@ -89,7 +169,6 @@ interface ProductsState {
   loading: boolean
   error: string | null
   
-  // Actions
   setProducts: (products: Product[]) => void
   addProduct: (product: Product) => void
   updateProduct: (id: string, updates: Partial<Product>) => void
@@ -107,7 +186,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
   filteredProducts: [],
   searchQuery: '',
   selectedCategory: '',
-  priceRange: [0, 999999], // ✅ Fixed: Increased max price to accommodate high-value products
+  priceRange: [0, 999999],
   loading: false,
   error: null,
 
@@ -156,16 +235,12 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
     const { products, searchQuery, selectedCategory, priceRange } = get()
     
     const filtered = products.filter((product) => {
-      // Search filter - check both title and name for compatibility
       const productName = product.title || product.name || ''
       const matchesSearch = !searchQuery || 
         productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.description.toLowerCase().includes(searchQuery.toLowerCase())
       
-      // Category filter
       const matchesCategory = !selectedCategory || product.category === selectedCategory
-      
-      // Price filter
       const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1]
       
       return matchesSearch && matchesCategory && matchesPrice
@@ -178,7 +253,6 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
   setError: (error) => set({ error }),
 }))
 
-// Cart Store
 interface CartState {
   items: CartItem[]
   total: number
@@ -187,7 +261,6 @@ interface CartState {
   discount: number
   discountCode: string | null
   
-  // Actions
   addItem: (product: Product, quantity?: number) => void
   removeItem: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
@@ -306,7 +379,6 @@ export const useCartStore = create<CartState>()(
   )
 )
 
-// Live Sessions Store
 interface LiveState {
   activeSessions: LiveSession[]
   currentSession: LiveSession | null
@@ -320,7 +392,6 @@ interface LiveState {
     timestamp: Date
   }>
   
-  // Actions
   setActiveSessions: (sessions: LiveSession[]) => void
   setCurrentSession: (session: LiveSession | null) => void
   setIsConnected: (connected: boolean) => void
@@ -355,7 +426,6 @@ export const useLiveStore = create<LiveState>((set) => ({
   clearChat: () => set({ chatMessages: [] }),
 }))
 
-// UI Store
 interface UIState {
   theme: 'light' | 'dark'
   sidebarOpen: boolean
@@ -364,6 +434,7 @@ interface UIState {
     products: boolean
     orders: boolean
     live: boolean
+    analytics: boolean // Added analytics loading state
   }
   notifications: Array<{
     id: string
@@ -373,7 +444,6 @@ interface UIState {
     timestamp: Date
   }>
   
-  // Actions
   setTheme: (theme: 'light' | 'dark') => void
   toggleSidebar: () => void
   setLoading: (key: keyof UIState['loading'], loading: boolean) => void
@@ -392,6 +462,7 @@ export const useUIStore = create<UIState>()(
         products: false,
         orders: false,
         live: false,
+        analytics: false,
       },
       notifications: [],
 
@@ -413,7 +484,6 @@ export const useUIStore = create<UIState>()(
           notifications: [...state.notifications, newNotification],
         }))
         
-        // Auto-remove after 5 seconds
         setTimeout(() => {
           get().removeNotification(newNotification.id)
         }, 5000)
@@ -429,18 +499,16 @@ export const useUIStore = create<UIState>()(
     {
       name: 'ui-storage',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ theme: state.theme }), // Only persist theme
+      partialize: (state) => ({ theme: state.theme }),
     }
   )
 )
 
-// Orders Store
 interface OrdersState {
   orders: Order[]
   currentOrder: Order | null
   loading: boolean
   
-  // Actions
   setOrders: (orders: Order[]) => void
   addOrder: (order: Order) => void
   updateOrderStatus: (orderId: string, status: Order['status']) => void
@@ -467,7 +535,73 @@ export const useOrdersStore = create<OrdersState>((set) => ({
   setLoading: (loading) => set({ loading }),
 }))
 
-// Export all stores as a convenience
+// NEW: Analytics Store
+interface AnalyticsState {
+  data: AnalyticsData | null
+  realtimeData: RealtimeAnalytics | null
+  timeRange: TimeRange
+  loading: boolean
+  error: string | null
+  lastUpdated: Date | null
+  
+  // Actions
+  setAnalyticsData: (data: AnalyticsData) => void
+  setRealtimeData: (data: RealtimeAnalytics) => void
+  setTimeRange: (range: TimeRange) => void
+  setLoading: (loading: boolean) => void
+  setError: (error: string | null) => void
+  setLastUpdated: (date: Date) => void
+  clearData: () => void
+  
+  // Computed values
+  getRevenueTrend: () => 'up' | 'down' | 'neutral'
+  getTopCategory: () => string | null
+  getConversionTrend: () => 'up' | 'down' | 'neutral'
+}
+
+export const useAnalyticsStore = create<AnalyticsState>((set, get) => ({
+  data: null,
+  realtimeData: null,
+  timeRange: '30d',
+  loading: false,
+  error: null,
+  lastUpdated: null,
+
+  setAnalyticsData: (data) => set({ data, lastUpdated: new Date() }),
+  setRealtimeData: (realtimeData) => set({ realtimeData }),
+  setTimeRange: (timeRange) => set({ timeRange }),
+  setLoading: (loading) => set({ loading }),
+  setError: (error) => set({ error }),
+  setLastUpdated: (lastUpdated) => set({ lastUpdated }),
+  clearData: () => set({ data: null, realtimeData: null, error: null }),
+
+  getRevenueTrend: () => {
+    const { data } = get()
+    if (!data?.revenue.growth) return 'neutral'
+    return data.revenue.growth > 0 ? 'up' : data.revenue.growth < 0 ? 'down' : 'neutral'
+  },
+
+  getTopCategory: () => {
+    const { data } = get()
+    if (!data?.products.categoryBreakdown.length) return null
+    return data.products.categoryBreakdown.sort((a, b) => b.revenue - a.revenue)[0].category
+  },
+
+  getConversionTrend: () => {
+    const { data } = get()
+    if (!data?.conversion.data.length) return 'neutral'
+    const recent = data.conversion.data.slice(-7)
+    const older = data.conversion.data.slice(-14, -7)
+    if (recent.length === 0 || older.length === 0) return 'neutral'
+    
+    const recentAvg = recent.reduce((sum, item) => sum + item.rate, 0) / recent.length
+    const olderAvg = older.reduce((sum, item) => sum + item.rate, 0) / older.length
+    
+    return recentAvg > olderAvg ? 'up' : recentAvg < olderAvg ? 'down' : 'neutral'
+  },
+}))
+
+// Export all stores
 export const stores = {
   useUserStore,
   useProductsStore,
@@ -475,4 +609,5 @@ export const stores = {
   useLiveStore,
   useUIStore,
   useOrdersStore,
+  useAnalyticsStore, // Added analytics store
 }
