@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const orderId = params.id;
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: orderId } = await params;
   try {
     // Update order status to cancelled
     const order = await prisma.order.update({

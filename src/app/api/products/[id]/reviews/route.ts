@@ -6,10 +6,10 @@ import { currentUser } from '@clerk/nextjs/server';
 // GET - Fetch reviews for a product
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const productId = params.id;
+    const { id: productId } = await params;
 
     if (!productId) {
       return NextResponse.json(

@@ -1,3 +1,23 @@
+// src/app/api/messages/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+
+// Placeholder route - messages feature not yet implemented
+export async function GET(request: NextRequest) {
+  return NextResponse.json(
+    { success: false, error: 'Messages feature not yet implemented' },
+    { status: 501 }
+  );
+}
+
+export async function POST(request: NextRequest) {
+  return NextResponse.json(
+    { success: false, error: 'Messages feature not yet implemented' },
+    { status: 501 }
+  );
+}
+
+/*
+// Feature commented out for future implementation
 // // src/app/api/messages/route.ts
 // import { NextRequest, NextResponse } from 'next/server';
 // import { prisma } from '@/lib/prisma';
@@ -308,3 +328,4 @@
 //     );
 //   }
 // }
+*/

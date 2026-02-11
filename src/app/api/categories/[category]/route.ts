@@ -4,10 +4,11 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { category: string } }
+  { params }: { params: Promise<{ category: string }> }
 ) {
   try {
-    const category = decodeURIComponent(params.category);
+    const { category: categoryParam } = await params;
+    const category = decodeURIComponent(categoryParam);
     const { searchParams } = new URL(request.url);
     
     // Parse query parameters
