@@ -3,14 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // User model - integrates with Clerk
 model User {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   clerkId   String   @unique
   email     String   @unique
   name      String?
@@ -37,10 +37,10 @@ model User {
 
 // Product model - Fix field names to match frontend
 model Product {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(cuid())
   title       String   // ✅ Keep as title (frontend expects this)
   name        String?  // ✅ Add name field for backward compatibility
-  description String
+  description String   @db.Text
   price       Float
   inventory   Int      @default(0)
   category    String
@@ -56,8 +56,8 @@ model Product {
   model3D     String?
   
   // Relations - Fix seller relation
-  sellerId    String   @db.ObjectId // ✅ Change back to ObjectId
-  seller      User     @relation(fields: [sellerId], references: [id], onDelete: Cascade) // ✅ Reference User.id
+  sellerId    String
+  seller      User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   
   orderItems  OrderItem[]
   reviews     Review[]
@@ -86,17 +86,17 @@ model Product {
 
 // Live Shopping Sessions
 model LiveSession {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String   @id @default(cuid())
   title       String
-  description String?
+  description String?  @db.Text
   
   liveKitRoom String   @unique
   
   // Relations - Fix seller relation
-  sellerId    String   @db.ObjectId // ✅ Change back to ObjectId
-  seller      User     @relation(fields: [sellerId], references: [id], onDelete: Cascade) // ✅ Reference User.id
+  sellerId    String
+  seller      User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   
-  productIds  String[] @db.ObjectId
+  productIds  String[]
   
   status      LiveStatus @default(SCHEDULED)
   scheduledAt DateTime?
@@ -114,13 +114,13 @@ model LiveSession {
 
 // Orders
 model Order {
-  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  id            String      @id @default(cuid())
   userId        String
   orderNumber   String?     @unique
   
   // Relations - Fix buyer relation
-  buyerId       String      @db.ObjectId // ✅ Change to ObjectId
-  buyer         User        @relation(fields: [buyerId], references: [id]) // ✅ Reference User.id
+  buyerId       String
+  buyer         User        @relation(fields: [buyerId], references: [id])
   
   items         OrderItem[]
   
@@ -143,9 +143,9 @@ model Order {
   status          OrderStatus @default(PENDING)
   
   // Order Notes
-  notes         String?
-  giftMessage   String?
-  adminNotes    String?     // ✅ Add for seller notes
+  notes         String?      @db.Text
+  giftMessage   String?      @db.Text
+  adminNotes    String?      @db.Text
   
   // Tracking
   trackingNumber String?
@@ -159,13 +159,13 @@ model Order {
 
 // Order Items (join table with additional data)
 model OrderItem {
-  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  id          String  @id @default(cuid())
   
   // Relations
-  orderId     String  @db.ObjectId
+  orderId     String
   order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   
-  productId   String  @db.ObjectId
+  productId   String
   product     Product @relation(fields: [productId], references: [id])
   
   // Item details at time of purchase
@@ -181,17 +181,17 @@ model OrderItem {
 
 // Product Reviews
 model Review {
-  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  id        String @id @default(cuid())
   
-  productId String @db.ObjectId
+  productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   
-  userId    String @db.ObjectId // ✅ Change back to ObjectId
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade) // ✅ Reference User.id
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   rating    Int
   title     String?
-  content   String
+  content   String   @db.Text
   images    String[]
   
   verified  Boolean @default(false)
@@ -206,9 +206,9 @@ model Review {
 
 // Promo Codes
 model PromoCode {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  id          String    @id @default(cuid())
   code        String    @unique
-  description String?
+  description String?   @db.Text
   
   // Discount details
   discountType    DiscountType // PERCENTAGE, FIXED_AMOUNT
@@ -238,12 +238,12 @@ model PromoCode {
 
 // Wishlist
 model Wishlist {
-  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  id        String @id @default(cuid())
   
-  userId    String @db.ObjectId // ✅ Change back to ObjectId
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade) // ✅ Reference User.id
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  productId String @db.ObjectId
+  productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   
   createdAt DateTime @default(now())
@@ -254,14 +254,14 @@ model Wishlist {
 
 // Categories for better organization
 model Category {
-  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  id          String @id @default(cuid())
   name        String @unique
   slug        String @unique
-  description String?
+  description String?  @db.Text
   image       String?
   
   // Hierarchy support
-  parentId    String? @db.ObjectId
+  parentId    String?
   parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children    Category[] @relation("CategoryHierarchy")
   
@@ -322,8 +322,8 @@ enum DiscountType {
 
 // Cart model - User's shopping cart
 model Cart {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId @unique
+  id        String   @id @default(cuid())
+  userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   items     CartItem[]
@@ -336,11 +336,11 @@ model Cart {
 
 // Cart Item model - Individual items in cart
 model CartItem {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  cartId    String   @db.ObjectId
+  id        String   @id @default(cuid())
+  cartId    String
   cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
   
-  productId String   @db.ObjectId
+  productId String
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   
   quantity  Int      @default(1)

@@ -497,6 +497,7 @@ export default function HomePage() {
   const [sortBy, setSortBy] = useState('createdAt')
   const [sortOrder, setSortOrder] = useState('desc')
   const [usingMockData, setUsingMockData] = useState(false)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
 
   // Mock live sessions
   const mockLiveSessions = [
@@ -594,6 +595,7 @@ const loadProducts = useCallback(async (page = 1) => {
     })
   } finally {
     setLoading(false)
+    setHasLoadedOnce(true)
   }
 }, [searchQuery, selectedCategory, priceRange, sortBy, sortOrder, setProducts, setLoading, setError, addNotification])
 
@@ -689,7 +691,7 @@ const loadProducts = useCallback(async (page = 1) => {
               message={error} 
               onRetry={() => loadProducts(pagination.currentPage)} 
             />
-          ) : loading && filteredProducts.length === 0 ? (
+          ) : (!hasLoadedOnce || loading) && filteredProducts.length === 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {Array(8).fill(0).map((_, index) => (
                 <ProductSkeleton key={index} />
