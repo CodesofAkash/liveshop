@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getUserByClerkId, updateUser, deleteUser, UpdateUserData } from '@/lib/user'
+import { prisma } from '@/lib/prisma'
 
 interface RouteParams {
   params: Promise<{ clerkId: string }>
 }
 
-// GET /api/users/[clerkId] - Get user by Clerk ID
+// GET /api/users/[clerkId] - Get user by Clerk ID (with optional profile stats)
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
     const { userId } = await auth()
     
     if (!userId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: 'Unauthorized' },
         { status: 401 }
       )
     }
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'User not found' },
+        { success: false, error: 'User not found' },
         { status: 404 }
       )
     }
@@ -31,16 +32,41 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     // Only allow users to access their own data or admin access
     if (userId !== clerkId && userId !== user.clerkId) {
       return NextResponse.json(
-        { error: 'Forbidden' },
+        { success: false, error: 'Forbidden' },
         { status: 403 }
       )
     }
 
-    return NextResponse.json(user)
+    // If user is accessing their own profile, include counts
+    if (userId === clerkId) {
+      const userWithCounts = await prisma.user.findUnique({
+        where: { clerkId },
+        include: {
+          _count: {
+            select: {
+              products: true,
+              orders: true,
+              reviews: true,
+              wishlist: true,
+            },
+          },
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: userWithCounts,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: user,
+    });
   } catch (error) {
     console.error('Error fetching user:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch user' },
+      { success: false, error: 'Failed to fetch user' },
       { status: 500 }
     )
   }
@@ -53,7 +79,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     
     if (!userId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: 'Unauthorized' },
         { status: 401 }
       )
     }
@@ -63,7 +89,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     // Only allow users to update their own data
     if (userId !== clerkId) {
       return NextResponse.json(
-        { error: 'Forbidden' },
+        { success: false, error: 'Forbidden' },
         { status: 403 }
       )
     }
@@ -87,11 +113,15 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     const user = await updateUser(clerkId, updateData)
 
-    return NextResponse.json(user)
+    return NextResponse.json({
+      success: true,
+      data: user,
+      message: 'Profile updated successfully',
+    })
   } catch (error) {
     console.error('Error updating user:', error)
     return NextResponse.json(
-      { error: 'Failed to update user' },
+      { success: false, error: 'Failed to update user' },
       { status: 500 }
     )
   }
@@ -104,7 +134,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     
     if (!userId) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { success: false, error: 'Unauthorized' },
         { status: 401 }
       )
     }
@@ -114,7 +144,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     // Only allow users to delete their own data
     if (userId !== clerkId) {
       return NextResponse.json(
-        { error: 'Forbidden' },
+        { success: false, error: 'Forbidden' },
         { status: 403 }
       )
     }
@@ -128,7 +158,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
   } catch (error) {
     console.error('Error deleting user:', error)
     return NextResponse.json(
-      { error: 'Failed to delete user' },
+      { success: false, error: 'Failed to delete user' },
       { status: 500 }
     )
   }

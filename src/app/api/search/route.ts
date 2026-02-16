@@ -40,7 +40,10 @@ export async function GET(request: NextRequest) {
         where: {
           OR: [
             { title: { contains: query, mode: 'insensitive' } },
+            { description: { contains: query, mode: 'insensitive' } },
             { category: { contains: query, mode: 'insensitive' } },
+            { brand: { contains: query, mode: 'insensitive' } },
+            { tags: { has: query.toLowerCase() } },
           ],
         },
         select: {
@@ -66,6 +69,8 @@ export async function GET(request: NextRequest) {
           { title: { contains: query, mode: 'insensitive' } },
           { description: { contains: query, mode: 'insensitive' } },
           { category: { contains: query, mode: 'insensitive' } },
+          { brand: { contains: query, mode: 'insensitive' } },
+          { tags: { has: query.toLowerCase() } },
         ],
       },
       include: {

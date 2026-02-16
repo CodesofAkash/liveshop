@@ -467,7 +467,6 @@ const ErrorComponent = ({ message, onRetry }: { message: string; onRetry: () => 
     </div>
   )
 }
-
 // Main Homepage Component
 export default function HomePage() {
   const { 

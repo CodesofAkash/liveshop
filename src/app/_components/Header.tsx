@@ -54,7 +54,7 @@ import {
   Users
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import EnhancedSearch from './EnhancedSearch'
+import EnhancedSearchBar from '@/components/shared/EnhancedSearchBar'
 
 // Cart Sidebar Component
 const CartSidebar = () => {
@@ -489,8 +489,8 @@ export default function Header() {
             </div>
 
             {/* Search Bar */}
-            <div className="hidden md:flex flex-1 max-w-2xl mx-8">
-              <EnhancedSearch placeholder="Search products, brands, categories..." className="max-w-md" />
+            <div className="hidden md:flex flex-1 max-w-md mx-8">
+              <EnhancedSearchBar />
               {/* <SearchBar /> */}
             </div>
 

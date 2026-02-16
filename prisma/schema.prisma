@@ -80,6 +80,12 @@ model Product {
   updatedAt   DateTime @updatedAt
   
   @@map("products")
+
+  @@index([status])
+  @@index([category])
+  @@index([featured])
+  @@index([createdAt])
+  @@index([sellerId])
 }
 
 // Live Shopping Sessions
@@ -153,6 +159,11 @@ model Order {
   updatedAt     DateTime @updatedAt
   
   @@map("orders")
+
+  @@index([buyerId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
 }
 
 // Order Items (join table with additional data)
@@ -200,6 +211,10 @@ model Review {
   
   @@unique([productId, userId])
   @@map("reviews")
+
+  @@index([productId])
+  @@index([userId])
+  @@index([rating])
 }
 
 // Promo Codes

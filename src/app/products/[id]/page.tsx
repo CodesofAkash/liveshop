@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Star, ShoppingCart, Heart, Share2, Truck, Shield, RotateCcw, Plus, Minus, ArrowLeft } from 'lucide-react';
+import { Star, ShoppingCart, Heart, Share2, Truck, Shield, RotateCcw, Plus, Minus, ArrowLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { useDbCartStore } from '@/lib/cart-store';
 import { useUser, SignInButton } from '@clerk/nextjs';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/utils';
+import Link from 'next/link';
 
 interface Product {
   id: string;
@@ -220,28 +221,24 @@ export default function ProductDetailPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
-          <button onClick={() => router.push('/')} className="hover:text-gray-800">
-            Home
-          </button>
-            {product.category && (
-              <>
-                <span>/</span>
-                <button onClick={() => router.push(`/?category=${product.category}`)} className="hover:text-gray-800">
-                  {product.category}
-                </button>
-              </>
-            )}
-
-            {product.title && (
-              <>
-                <span>/</span>
-                <span className="text-gray-800">{product.title}</span>
-              </>
-            )}
-          
-          <span>/</span>
-        </div>
+      <nav className="flex items-center gap-2 text-sm mb-6">
+        <Link href="/" className="text-muted-foreground hover:text-foreground">
+          Home
+        </Link>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <Link href="/search" className="text-muted-foreground hover:text-foreground">
+          Products
+        </Link>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <Link 
+          href={`/search?category=${product.category}`} 
+          className="text-muted-foreground hover:text-foreground"
+        >
+          {product.category}
+        </Link>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <span className="text-foreground font-medium truncate">{product.title}</span>
+      </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Product Images */}
@@ -395,8 +392,23 @@ export default function ProductDetailPage() {
                     </SignInButton>
                   </div>
                 )}
-                <Button variant="outline" className="h-12 px-6">
-                  <Share2 className="h-5 w-5" />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({
+                        title: product.title,
+                        text: product.description,
+                        url: window.location.href,
+                      });
+                    } else {
+                      navigator.clipboard.writeText(window.location.href);
+                      toast.success('Link copied to clipboard!');
+                    }
+                  }}
+                >
+                  <Share2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
