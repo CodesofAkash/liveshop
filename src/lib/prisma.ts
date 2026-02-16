@@ -20,6 +20,7 @@ export const prisma =
   new PrismaClient({
     adapter,
     log: ['query'],
+    adapter,
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
